@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<!--
+    ARCHIVO: citas.html | CAPA: FRONTEND (agenda de citas)
+    SIRVE PARA: ver la agenda, programar, reprogramar, confirmar, marcar atendida o inasistencia y cancelar citas (RF06 a RF10).
+    QUÉ HACE: lista citas con backend/citas.php; las horas libres se piden a backend/disponibilidad.php
+              cada vez que cambian el médico o la fecha. Las reglas (cruces, horario, permisos) las valida el servidor.
+    CONECTA CON: backend/citas.php, backend/disponibilidad.php, backend/pacientes.php,
+                 backend/especialidades_medicos.php, js/app.js, css/clinica.css
+-->
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clínica Vida Salud · Citas</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/clinica.css">
+</head>
+<body>
+<div class="app">
+    <div id="menu"></div>
+    <main class="contenido">
+        <div class="encabezado">
+            <div>
+                <h1>Agenda de citas</h1>
+                <p id="subtitulo">Programe, reprograme o registre el resultado de cada cita.</p>
+            </div>
+            <button class="btn text-white" style="background:#0b7285;" id="btnNueva">
+                <i class="fa-solid fa-plus"></i> Programar cita</button>
+        </div>
+
+        <section class="tarjeta mb-3">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-3"><label class="form-label small text-muted">Fecha</label>
+                    <input type="date" class="form-control" id="fFecha"></div>
+                <div class="col-md-3"><label class="form-label small text-muted">Médico</label>
+                    <select class="form-select" id="fMedico"><option value="">Todos</option></select></div>
+                <div class="col-md-3"><label class="form-label small text-muted">Estado</label>
+                    <select class="form-select" id="fEstado">
+                        <option value="">Todos</option>
+                        <option>Programada</option><option>Confirmada</option><option>Atendida</option>
+                        <option>Inasistencia</option><option>Cancelada</option>
+                    </select></div>
+                <div class="col-md-3 d-flex gap-2">
+                    <button class="btn btn-outline-secondary flex-fill" id="btnLimpiar">Limpiar</button>
+                    <button class="btn btn-primary flex-fill" id="btnFiltrar" style="background:#0b7285;border-color:#0b7285;">Filtrar</button>
+                </div>
+            </div>
+            <div id="filtroPaciente" class="mt-2"></div>
+        </section>
+
+        <section class="tarjeta">
+            <div class="tabla-wrap">
+                <table class="table align-middle">
+                    <thead><tr>
+                        <th>Fecha y hora</th><th>Paciente</th><th>Médico / especialidad</th><th>Estado</th><th class="text-end">Acciones</th>
+                    </tr></thead>
+                    <tbody id="cuerpo"><tr><td colspan="5" class="cargando">Cargando…</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+
+<!-- Programar cita -->
+<div class="modal fade" id="modalNueva" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <form class="modal-content" id="formNueva" novalidate>
+            <div class="modal-header">
+                <h5 class="modal-title">Programar cita</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <div id="errorNueva" class="alert alert-danger d-none"></div>
+                <div class="row g-3">
+                    <div class="col-md-6"><label class="form-label">Paciente *</label>
+                        <select class="form-select" id="nPaciente" required></select></div>
+                    <div class="col-md-6"><label class="form-label">Médico *</label>
+                        <select class="form-select" id="nMedico" required></select></div>
+                    <div class="col-md-6"><label class="form-label">Especialidad *</label>
+                        <select class="form-select" id="nEspecialidad" required></select></div>
+                    <div class="col-md-3"><label class="form-label">Fecha *</label>
+                        <input type="date" class="form-control" id="nFecha" required></div>
+                    <div class="col-md-3"><label class="form-label">Hora libre *</label>
+                        <select class="form-select" id="nHora" required><option value="">Elija médico y fecha</option></select></div>
+                    <div class="col-12"><label class="form-label">Motivo de la consulta</label>
+                        <input class="form-control" id="nMotivo" maxlength="200" placeholder="Ej.: control anual, dolor de cabeza…"></div>
+                </div>
+                <p class="small text-muted mt-3 mb-0"><i class="fa-solid fa-circle-info"></i>
+                    Solo aparecen horas libres dentro del horario del médico. No se permiten citas en fechas pasadas.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn text-white" id="btnGuardarNueva" style="background:#0b7285;">Programar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Reprogramar -->
+<div class="modal fade" id="modalReprogramar" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form class="modal-content" id="formReprogramar" novalidate>
+            <div class="modal-header">
+                <h5 class="modal-title">Reprogramar cita</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <div id="errorReprogramar" class="alert alert-danger d-none"></div>
+                <input type="hidden" id="rId">
+                <input type="hidden" id="rMedico">
+                <div class="mb-3"><label class="form-label">Nueva fecha *</label>
+                    <input type="date" class="form-control" id="rFecha" required></div>
+                <div class="mb-1"><label class="form-label">Nueva hora *</label>
+                    <select class="form-select" id="rHora" required></select></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Volver</button>
+                <button type="submit" class="btn text-white" style="background:#0b7285;">Reprogramar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Cancelar con motivo -->
+<div class="modal fade" id="modalCancelar" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form class="modal-content" id="formCancelar" novalidate>
+            <div class="modal-header">
+                <h5 class="modal-title">Cancelar cita</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="cId">
+                <label class="form-label">Motivo de la cancelación *</label>
+                <input class="form-control" id="cMotivo" maxlength="200" required>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Volver</button>
+                <button type="submit" class="btn btn-danger">Cancelar cita</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="js/app.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    await Clinica.requerirSesion();
+    Clinica.dibujarMenu('citas');
+
+    const params = new URLSearchParams(location.search);
+    const puedeGestionar = ['Administrador', 'Recepcionista'].includes(Clinica.usuario.rol);
+    const esMedico = Clinica.usuario.rol === 'Médico';
+    const hoy = new Date().toLocaleDateString('en-CA');   // formato AAAA-MM-DD en hora local
+    const ESTADOS_ABIERTOS = ['Programada', 'Confirmada'];
+
+    const M = {
+        nueva: new bootstrap.Modal(document.getElementById('modalNueva')),
+        reprogramar: new bootstrap.Modal(document.getElementById('modalReprogramar')),
+        cancelar: new bootstrap.Modal(document.getElementById('modalCancelar')),
+    };
+    let medicos = [];
+    let pacientesCargados = false;
+
+    const $ = id => document.getElementById(id);
+    const mostrarError = (id, texto) => { const b = $(id); b.textContent = texto; b.classList.remove('d-none'); };
+    const ocultarError = id => $(id).classList.add('d-none');
+
+    // ---------- Filtros y agenda ----------
+    const pacienteFiltro = params.get('paciente');
+    if (pacienteFiltro) {
+        $('filtroPaciente').innerHTML = `<span class="chip"><i class="fa-solid fa-user"></i> Historial del paciente seleccionado</span>
+            <a href="citas.html" class="small ms-2">Quitar filtro</a>`;
+        $('subtitulo').textContent = 'Historial de citas del paciente.';
+    }
+    if (esMedico) $('btnNueva').classList.add('d-none');
+
+    async function cargarMedicos() {
+        const d = await Clinica.api('especialidades_medicos.php?tipo=medicos');
+        medicos = d.medicos;
+        const opts = medicos.map(m => `<option value="${m.id_medico}">Dr. ${Clinica.esc(m.nombres)} ${Clinica.esc(m.apellidos)}</option>`).join('');
+        $('fMedico').insertAdjacentHTML('beforeend', opts);
+        $('nMedico').innerHTML = '<option value="">Seleccione…</option>' + opts;
+    }
+
+    async function cargarEspecialidades() {
+        const d = await Clinica.api('especialidades_medicos.php?tipo=especialidades');
+        window.__especialidades = d.especialidades;
+    }
+
+    function filtrarEspecialidades() {
+        const idMed = $('nMedico').value;
+        const med = medicos.find(m => String(m.id_medico) === idMed);
+        const lista = med ? med.especialidades : [];
+        $('nEspecialidad').innerHTML = lista.length
+            ? '<option value="">Seleccione…</option>' + lista.map(e => `<option value="${e.id_especialidad}">${Clinica.esc(e.nombre)}</option>`).join('')
+            : '<option value="">Elija un médico</option>';
+    }
+
+    async function cargarHoras() {
+        const med = $('nMedico').value, fecha = $('nFecha').value;
+        $('nHora').innerHTML = '<option value="">Cargando horas…</option>';
+        if (!med || !fecha) { $('nHora').innerHTML = '<option value="">Elija médico y fecha</option>'; return; }
+        try {
+            const d = await Clinica.api(`disponibilidad.php?medico=${med}&fecha=${fecha}`);
+            $('nHora').innerHTML = d.horas.length
+                ? '<option value="">Seleccione una hora…</option>' + d.horas.map(h => `<option value="${h.valor}">${Clinica.esc(h.texto)}</option>`).join('')
+                : '<option value="">No hay horas libres ese día</option>';
+        } catch (e) {
+            $('nHora').innerHTML = `<option value="">${Clinica.esc(e.message)}</option>`;
+        }
+    }
+
+    function acciones(c) {
+        if (esMedico && ESTADOS_ABIERTOS.includes(c.estado) === false) return '';
+        if (!puedeGestionar && !esMedico) return '';
+        const abierta = ESTADOS_ABIERTOS.includes(c.estado);
+        const yaEmpezo = new Date(c.inicio.replace(' ', 'T')) <= new Date();
+        let html = '';
+        if (abierta && c.estado === 'Programada' && puedeGestionar)
+            html += `<button class="btn btn-sm btn-outline-info" data-accion="confirmar" data-id="${c.id_cita}" title="Confirmar"><i class="fa-solid fa-check"></i></button> `;
+        if (abierta && yaEmpezo)
+            html += `<button class="btn btn-sm btn-outline-success" data-accion="atender" data-id="${c.id_cita}" title="Marcar atendida"><i class="fa-solid fa-stethoscope"></i></button> `;
+        if (abierta && yaEmpezo && puedeGestionar)
+            html += `<button class="btn btn-sm btn-outline-warning" data-accion="inasistencia" data-id="${c.id_cita}" title="Registrar inasistencia"><i class="fa-solid fa-user-clock"></i></button> `;
+        if (abierta && puedeGestionar)
+            html += `<button class="btn btn-sm btn-outline-secondary" data-accion="reprogramar" data-id="${c.id_cita}" data-medico="${c.id_medico}" data-fecha="${c.inicio.slice(0, 10)}" title="Reprogramar"><i class="fa-solid fa-calendar-days"></i></button> `;
+        if (abierta && puedeGestionar)
+            html += `<button class="btn btn-sm btn-outline-danger" data-accion="cancelar" data-id="${c.id_cita}" title="Cancelar"><i class="fa-solid fa-ban"></i></button>`;
+        return html;
+    }
+
+    async function cargarCitas() {
+        const q = new URLSearchParams();
+        if ($('fFecha').value) q.set('fecha', $('fFecha').value);
+        if ($('fMedico').value) q.set('medico', $('fMedico').value);
+        if ($('fEstado').value) q.set('estado', $('fEstado').value);
+        if (pacienteFiltro) q.set('paciente', pacienteFiltro);
+        $('cuerpo').innerHTML = '<tr><td colspan="5" class="cargando">Cargando…</td></tr>';
+        try {
+            const d = await Clinica.api('citas.php?' + q.toString());
+            if (d.citas.length === 0) {
+                $('cuerpo').innerHTML = '<tr><td colspan="5"><div class="vacio"><i class="fa-regular fa-calendar"></i>No hay citas con esos filtros.</div></td></tr>';
+                return;
+            }
+            $('cuerpo').innerHTML = d.citas.map(c => {
+                const motivo = c.estado === 'Cancelada' && c.motivo_cancelacion
+                    ? `<div class="small text-danger">Motivo: ${Clinica.esc(c.motivo_cancelacion)}</div>` : '';
+                return `<tr>
+                    <td><div class="hora">${Clinica.fecha(c.inicio)}</div><div class="small text-muted"><code>${Clinica.esc(c.codigo)}</code></div></td>
+                    <td><div class="fw-bold">${Clinica.esc(c.apellidos_paciente)}, ${Clinica.esc(c.nombres_paciente)}</div>
+                        <div class="small text-muted">${Clinica.esc(c.ci)} · ${Clinica.esc(c.telefono_paciente)}</div></td>
+                    <td><div>Dr. ${Clinica.esc(c.nombres_medico)} ${Clinica.esc(c.apellidos_medico)}</div>
+                        <div class="small text-muted">${Clinica.esc(c.especialidad)}</div>
+                        ${c.motivo ? `<div class="small"><em>${Clinica.esc(c.motivo)}</em></div>` : ''}</td>
+                    <td>${Clinica.estadoBadge(c.estado)}${motivo}</td>
+                    <td class="text-end text-nowrap">${acciones(c)}</td>
+                </tr>`;
+            }).join('');
+        } catch (e) {
+            $('cuerpo').innerHTML = `<tr><td colspan="5" class="text-danger">${Clinica.esc(e.message)}</td></tr>`;
+        }
+    }
+
+    // ---------- Acciones de la agenda ----------
+    async function cambiarEstado(id, estado, motivo) {
+        try {
+            await Clinica.api('citas.php', { metodo: 'POST', datos: { accion: 'estado', id, estado, motivo } });
+            Clinica.toast('Cita actualizada: ' + estado + '.');
+            cargarCitas();
+        } catch (e) { Clinica.toast(e.message, 'error'); }
+    }
+
+    $('cuerpo').addEventListener('click', (ev) => {
+        const b = ev.target.closest('[data-accion]');
+        if (!b) return;
+        const id = b.dataset.id;
+        switch (b.dataset.accion) {
+            case 'confirmar': return cambiarEstado(id, 'Confirmada');
+            case 'atender': return cambiarEstado(id, 'Atendida');
+            case 'inasistencia': return cambiarEstado(id, 'Inasistencia');
+            case 'cancelar':
+                $('cId').value = id; $('cMotivo').value = ''; return M.cancelar.show();
+            case 'reprogramar':
+                $('rId').value = id; $('rMedico').value = b.dataset.medico; $('rFecha').value = hoy; $('rFecha').min = hoy;
+                ocultarError('errorReprogramar');
+                return cargarHorasReprogramar().then(() => M.reprogramar.show());
+        }
+    });
+
+    $('formCancelar').addEventListener('submit', (ev) => {
+        ev.preventDefault();
+        const motivo = $('cMotivo').value.trim();
+        if (!motivo) return;
+        M.cancelar.hide();
+        cambiarEstado($('cId').value, 'Cancelada', motivo);
+    });
+
+    async function cargarHorasReprogramar() {
+        const med = $('rMedico').value;
+        if (!med || !$('rFecha').value) { $('rHora').innerHTML = '<option value="">Elija una fecha</option>'; return; }
+        const d = await Clinica.api(`disponibilidad.php?medico=${med}&fecha=${$('rFecha').value}`);
+        $('rHora').innerHTML = d.horas.length
+            ? d.horas.map(h => `<option value="${h.valor}">${Clinica.esc(h.texto)}</option>`).join('')
+            : '<option value="">No hay horas libres ese día</option>';
+    }
+    $('rFecha').addEventListener('change', () => cargarHorasReprogramar().catch(e => mostrarError('errorReprogramar', e.message)));
+
+    $('formReprogramar').addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        ocultarError('errorReprogramar');
+        try {
+            await Clinica.api('citas.php', { metodo: 'POST', datos: {
+                accion: 'reprogramar', id: $('rId').value, fecha: $('rFecha').value, hora: $('rHora').value,
+            }});
+            M.reprogramar.hide();
+            Clinica.toast('Cita reprogramada.');
+            cargarCitas();
+        } catch (e) { mostrarError('errorReprogramar', e.message); }
+    });
+
+    // ---------- Programar cita ----------
+    async function abrirNueva() {
+        ocultarError('errorNueva');
+        $('formNueva').reset();
+        $('nFecha').min = hoy;
+        if (!pacientesCargados) {
+            const d = await Clinica.api('pacientes.php');
+            $('nPaciente').innerHTML = '<option value="">Seleccione…</option>' + d.pacientes
+                .filter(p => p.activo)
+                .map(p => `<option value="${p.id_paciente}">${Clinica.esc(p.apellidos)}, ${Clinica.esc(p.nombres)} (${Clinica.esc(p.ci)})</option>`).join('');
+            pacientesCargados = true;
+        }
+        const preMed = params.get('medico');
+        if (preMed) $('nMedico').value = preMed;
+        filtrarEspecialidades();
+        M.nueva.show();
+    }
+
+    $('btnNueva').addEventListener('click', () => abrirNueva().catch(e => Clinica.toast(e.message, 'error')));
+    $('nMedico').addEventListener('change', () => { filtrarEspecialidades(); cargarHoras(); });
+    $('nFecha').addEventListener('change', cargarHoras);
+
+    $('formNueva').addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        ocultarError('errorNueva');
+        const datos = {
+            accion: 'crear',
+            paciente: $('nPaciente').value,
+            medico: $('nMedico').value,
+            especialidad: $('nEspecialidad').value,
+            fecha: $('nFecha').value,
+            hora: $('nHora').value,
+            motivo: $('nMotivo').value.trim(),
+        };
+        if (!datos.paciente || !datos.medico || !datos.especialidad || !datos.fecha || !datos.hora) {
+            mostrarError('errorNueva', 'Complete paciente, médico, especialidad, fecha y hora.');
+            return;
+        }
+        const boton = $('btnGuardarNueva');
+        boton.disabled = true;
+        try {
+            await Clinica.api('citas.php', { metodo: 'POST', datos });
+            M.nueva.hide();
+            Clinica.toast('Cita programada correctamente.');
+            cargarCitas();
+        } catch (e) {
+            mostrarError('errorNueva', e.message);
+        } finally {
+            boton.disabled = false;
+        }
+    });
+
+    // ---------- Arranque ----------
+    $('btnFiltrar').addEventListener('click', cargarCitas);
+    $('btnLimpiar').addEventListener('click', () => {
+        $('fFecha').value = ''; $('fMedico').value = ''; $('fEstado').value = ''; cargarCitas();
+    });
+
+    await Promise.all([cargarMedicos(), cargarEspecialidades()]);
+    if (params.get('nueva') === '1' && puedeGestionar) abrirNueva().catch(() => {});
+    cargarCitas();
+});
+</script>
+</body>
+</html>

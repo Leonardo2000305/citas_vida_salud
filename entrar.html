@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<!--
+    ARCHIVO: entrar.html | CAPA: FRONTEND (pantalla de inicio de sesión)
+    SIRVE PARA: que el personal de la clínica entre con su usuario o correo y su contraseña.
+    QUÉ HACE: envía los datos a backend/sesion.php. Si son correctos, lleva al panel de inicio.
+    CONECTA CON: backend/sesion.php, js/app.js, css/clinica.css
+-->
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clínica Vida Salud · Ingreso</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/clinica.css">
+</head>
+<body>
+<div class="pantalla-login">
+    <section class="panel-marca">
+        <h1>Cuidamos tu salud,<br>organizamos tu tiempo.</h1>
+        <p>Plataforma de gestión de la Clínica Vida Salud: pacientes, médicos, horarios y citas en un solo lugar.</p>
+        <div class="mt-4">
+            <span class="pastilla"><i class="fa-solid fa-calendar-check"></i> Citas sin choques</span>
+            <span class="pastilla"><i class="fa-solid fa-notes-medical"></i> Historial del paciente</span>
+            <span class="pastilla"><i class="fa-solid fa-chart-line"></i> Reportes</span>
+        </div>
+        <i class="fa-solid fa-heart-pulse cruz"></i>
+    </section>
+
+    <section class="area-login">
+        <div class="card-login">
+            <div class="logo-clinica">
+                <span class="icono"><i class="fa-solid fa-heart-pulse"></i></span>
+                Vida Salud
+            </div>
+            <h2 class="login-title">Ingreso del personal</h2>
+
+            <div id="alerta" class="alert d-none mb-3" role="alert"></div>
+
+            <form id="formEntrar" autocomplete="off" novalidate>
+                <div class="mb-3">
+                    <label class="form-label small text-muted" for="usuario">Usuario o correo</label>
+                    <input type="text" id="usuario" class="form-control" autocomplete="username" required>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label small text-muted" for="clave">Contraseña</label>
+                    <div class="input-clave">
+                        <input type="password" id="clave" class="form-control" autocomplete="current-password" required>
+                        <button class="btn-ojo" type="button" id="btnOjo" aria-label="Mostrar contraseña">
+                            <i class="fa-solid fa-eye"></i></button>
+                    </div>
+                </div>
+                <button type="submit" id="btnEntrar" class="btn-principal">Ingresar</button>
+            </form>
+
+            <p class="nota-demo">Acceso exclusivo para personal autorizado de la clínica.</p>
+        </div>
+    </section>
+</div>
+
+<script src="js/app.js"></script>
+<script>
+(function () {
+    const form = document.getElementById('formEntrar');
+    const alerta = document.getElementById('alerta');
+    const boton = document.getElementById('btnEntrar');
+
+    // Si ya hay sesión, no se muestra el login otra vez
+    Clinica.api('sesion.php').then(() => location.replace('inicio.html')).catch(() => {});
+
+    document.getElementById('btnOjo').addEventListener('click', function () {
+        const campo = document.getElementById('clave');
+        const oculto = campo.type === 'password';
+        campo.type = oculto ? 'text' : 'password';
+        this.innerHTML = oculto ? '<i class="fa-solid fa-eye-slash"></i>' : '<i class="fa-solid fa-eye"></i>';
+    });
+
+    function mostrarError(texto) {
+        alerta.className = 'alert alert-danger mb-3';
+        alerta.textContent = texto;
+    }
+
+    form.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const usuario = document.getElementById('usuario').value.trim();
+        const clave = document.getElementById('clave').value;
+        if (!usuario || !clave) {
+            mostrarError('Ingrese su usuario o correo y su contraseña.');
+            return;
+        }
+        boton.disabled = true;
+        boton.textContent = 'Verificando…';
+        try {
+            const d = await Clinica.api('sesion.php', { metodo: 'POST', datos: { usuario, clave } });
+            Clinica.csrf = d.csrf;
+            location.replace('inicio.html');
+        } catch (e) {
+            mostrarError(e.message);
+            boton.disabled = false;
+            boton.textContent = 'Ingresar';
+        }
+    });
+})();
+</script>
+</body>
+</html>

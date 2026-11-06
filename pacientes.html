@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<!--
+    ARCHIVO: pacientes.html | CAPA: FRONTEND (pantalla de pacientes)
+    SIRVE PARA: buscar, registrar, editar y activar/desactivar pacientes (RF02).
+    QUÉ HACE: lista pacientes con backend/pacientes.php; el formulario guarda con POST o PUT.
+    CONECTA CON: backend/pacientes.php, citas.html (historial), js/app.js, css/clinica.css
+-->
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clínica Vida Salud · Pacientes</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/clinica.css">
+</head>
+<body>
+<div class="app">
+    <div id="menu"></div>
+    <main class="contenido">
+        <div class="encabezado">
+            <div>
+                <h1>Pacientes</h1>
+                <p>Registro de pacientes, búsqueda por CI, nombre o código.</p>
+            </div>
+            <button class="btn btn-primary" style="background:#0b7285;border-color:#0b7285;" id="btnNuevo">
+                <i class="fa-solid fa-user-plus"></i> Nuevo paciente</button>
+        </div>
+
+        <section class="tarjeta">
+            <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
+                <input type="search" id="buscar" class="form-control buscador" placeholder="Buscar por CI, nombre o código…">
+                <span class="text-muted small" id="contador"></span>
+            </div>
+            <div class="tabla-wrap">
+                <table class="table align-middle">
+                    <thead><tr>
+                        <th>Código</th><th>CI</th><th>Paciente</th><th>Teléfono</th><th>Citas</th><th>Estado</th><th class="text-end">Acciones</th>
+                    </tr></thead>
+                    <tbody id="cuerpo"><tr><td colspan="7" class="cargando">Cargando…</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+
+<!-- Formulario de paciente (nuevo o editar) -->
+<div class="modal fade" id="modalPaciente" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <form class="modal-content" id="formPaciente" novalidate>
+            <div class="modal-header">
+                <h5 class="modal-title" id="tituloModal">Nuevo paciente</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <div id="errorPaciente" class="alert alert-danger d-none"></div>
+                <input type="hidden" id="idPaciente">
+                <div class="row g-3">
+                    <div class="col-md-4"><label class="form-label">CI *</label>
+                        <input class="form-control" id="ci" required maxlength="20"></div>
+                    <div class="col-md-4"><label class="form-label">Nombres *</label>
+                        <input class="form-control" id="nombres" required maxlength="80"></div>
+                    <div class="col-md-4"><label class="form-label">Apellidos *</label>
+                        <input class="form-control" id="apellidos" required maxlength="80"></div>
+                    <div class="col-md-4"><label class="form-label">Fecha de nacimiento *</label>
+                        <input type="date" class="form-control" id="fecha_nacimiento" required></div>
+                    <div class="col-md-4"><label class="form-label">Sexo</label>
+                        <select class="form-select" id="sexo">
+                            <option value="">Sin especificar</option>
+                            <option>Femenino</option><option>Masculino</option><option>Otro</option>
+                        </select></div>
+                    <div class="col-md-4"><label class="form-label">Teléfono *</label>
+                        <input class="form-control" id="telefono" required maxlength="20"></div>
+                    <div class="col-md-6"><label class="form-label">Correo</label>
+                        <input type="email" class="form-control" id="correo" maxlength="120"></div>
+                    <div class="col-md-6"><label class="form-label">Dirección</label>
+                        <input class="form-control" id="direccion" maxlength="200"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-primary" id="btnGuardarPaciente" style="background:#0b7285;border-color:#0b7285;">
+                    Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="js/app.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    await Clinica.requerirSesion();
+    Clinica.dibujarMenu('pacientes');
+
+    const modal = new bootstrap.Modal(document.getElementById('modalPaciente'));
+    const form = document.getElementById('formPaciente');
+    const errorBox = document.getElementById('errorPaciente');
+    const cuerpo = document.getElementById('cuerpo');
+    const puedeEditar = ['Administrador', 'Recepcionista'].includes(Clinica.usuario.rol);
+    let temporizador = null;
+
+    const campos = ['ci', 'nombres', 'apellidos', 'fecha_nacimiento', 'sexo', 'telefono', 'correo', 'direccion'];
+
+    async function cargar() {
+        const q = document.getElementById('buscar').value.trim();
+        cuerpo.innerHTML = '<tr><td colspan="7" class="cargando">Cargando…</td></tr>';
+        try {
+            const d = await Clinica.api('pacientes.php' + (q ? '?q=' + encodeURIComponent(q) : ''));
+            const lista = d.pacientes;
+            document.getElementById('contador').textContent = `${lista.length} paciente(s)`;
+            if (lista.length === 0) {
+                cuerpo.innerHTML = '<tr><td colspan="7"><div class="vacio"><i class="fa-solid fa-user-slash"></i>Sin resultados.</div></td></tr>';
+                return;
+            }
+            cuerpo.innerHTML = lista.map(p => `
+                <tr>
+                    <td><code>${Clinica.esc(p.codigo)}</code></td>
+                    <td>${Clinica.esc(p.ci)}</td>
+                    <td><div class="fw-bold">${Clinica.esc(p.apellidos)}, ${Clinica.esc(p.nombres)}</div>
+                        <div class="small text-muted">${Clinica.esc(p.sexo || '')}</div></td>
+                    <td>${Clinica.esc(p.telefono)}</td>
+                    <td><span class="chip">${Number(p.total_citas)}</span></td>
+                    <td><span class="estado ${p.activo ? 'estado-activo' : 'estado-inactivo'}">${p.activo ? 'Activo' : 'Inactivo'}</span></td>
+                    <td class="text-end text-nowrap">
+                        <a class="btn btn-sm btn-outline-primary" href="citas.html?paciente=${p.id_paciente}" title="Historial de citas">
+                            <i class="fa-solid fa-notes-medical"></i></a>
+                        ${puedeEditar ? `
+                        <button class="btn btn-sm btn-outline-secondary" data-editar="${p.id_paciente}" title="Editar">
+                            <i class="fa-solid fa-pen"></i></button>
+                        <button class="btn btn-sm btn-outline-${p.activo ? 'danger' : 'success'}" data-activo="${p.id_paciente}"
+                            data-valor="${p.activo ? 0 : 1}" title="${p.activo ? 'Desactivar' : 'Activar'}">
+                            <i class="fa-solid fa-${p.activo ? 'user-slash' : 'user-check'}"></i></button>` : ''}
+                    </td>
+                </tr>`).join('');
+        } catch (e) {
+            cuerpo.innerHTML = `<tr><td colspan="7" class="text-danger">${Clinica.esc(e.message)}</td></tr>`;
+        }
+    }
+
+    function abrirNuevo() {
+        form.reset();
+        document.getElementById('idPaciente').value = '';
+        document.getElementById('tituloModal').textContent = 'Nuevo paciente';
+        errorBox.classList.add('d-none');
+        modal.show();
+    }
+
+    async function abrirEditar(id) {
+        try {
+            const d = await Clinica.api('pacientes.php?id=' + id);
+            const p = d.paciente;
+            form.reset();
+            document.getElementById('idPaciente').value = p.id_paciente;
+            campos.forEach(c => { document.getElementById(c).value = p[c] ?? ''; });
+            document.getElementById('tituloModal').textContent = 'Editar paciente ' + p.codigo;
+            errorBox.classList.add('d-none');
+            modal.show();
+        } catch (e) { Clinica.toast(e.message, 'error'); }
+    }
+
+    form.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        if (!form.checkValidity()) { form.reportValidity(); return; }
+        const datos = {};
+        campos.forEach(c => { datos[c] = document.getElementById(c).value.trim(); });
+        const id = document.getElementById('idPaciente').value;
+        const boton = document.getElementById('btnGuardarPaciente');
+        boton.disabled = true;
+        try {
+            if (id) {
+                await Clinica.api('pacientes.php?id=' + id, { metodo: 'PUT', datos });
+            } else {
+                await Clinica.api('pacientes.php', { metodo: 'POST', datos });
+            }
+            modal.hide();
+            Clinica.toast(id ? 'Paciente actualizado.' : 'Paciente registrado.');
+            cargar();
+        } catch (e) {
+            errorBox.textContent = e.message;
+            errorBox.classList.remove('d-none');
+        } finally {
+            boton.disabled = false;
+        }
+    });
+
+    cuerpo.addEventListener('click', async (ev) => {
+        const editar = ev.target.closest('[data-editar]');
+        if (editar) return abrirEditar(editar.dataset.editar);
+        const activo = ev.target.closest('[data-activo]');
+        if (activo) {
+            try {
+                await Clinica.api('pacientes.php?id=' + activo.dataset.activo, {
+                    metodo: 'PUT', datos: { activo: activo.dataset.valor === '1' },
+                });
+                Clinica.toast('Estado del paciente actualizado.');
+                cargar();
+            } catch (e) { Clinica.toast(e.message, 'error'); }
+        }
+    });
+
+    document.getElementById('buscar').addEventListener('input', () => {
+        clearTimeout(temporizador);
+        temporizador = setTimeout(cargar, 300);
+    });
+    document.getElementById('btnNuevo').addEventListener('click', abrirNuevo);
+
+    if (new URLSearchParams(location.search).get('nuevo') === '1' && puedeEditar) abrirNuevo();
+    cargar();
+});
+</script>
+</body>
+</html>
