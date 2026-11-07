@@ -148,6 +148,17 @@
         },
     };
 
+    // Ojito para mostrar u ocultar contraseñas: <button class="btn-ojo" data-para="id_del_campo">
+    document.addEventListener('click', (ev) => {
+        const boton = ev.target.closest('.btn-ojo[data-para]');
+        if (!boton) return;
+        const campo = document.getElementById(boton.dataset.para);
+        if (!campo) return;
+        const oculto = campo.type === 'password';
+        campo.type = oculto ? 'text' : 'password';
+        boton.innerHTML = oculto ? '<i class="fa-solid fa-eye-slash"></i>' : '<i class="fa-solid fa-eye"></i>';
+    });
+
     window.Clinica = Clinica;
     Clinica.aplicarTemaGuardado();
 })();
