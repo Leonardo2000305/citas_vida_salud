@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<!--
+    ARCHIVO: pagos.html | CAPA: FRONTEND (solo recepción y administración)
+    SIRVE PARA: ver el dinero cobrado en un rango de fechas, separado por método de pago.
+    CONECTA CON: backend/pagos.php, js/app.js, css/clinica.css
+-->
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clínica Vida Salud · Reporte de pagos</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/clinica.css">
+</head>
+<body>
+<div class="app">
+    <div id="menu"></div>
+    <main class="contenido">
+        <div class="encabezado">
+            <div>
+                <h1>Reporte de pagos</h1>
+                <p>Cobros registrados por recepción. El día es el día de la cita.</p>
+            </div>
+        </div>
+
+        <section class="tarjeta mb-3">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-4"><label class="form-label small">Desde</label><input type="date" class="form-control" id="desde"></div>
+                <div class="col-md-4"><label class="form-label small">Hasta</label><input type="date" class="form-control" id="hasta"></div>
+                <div class="col-md-4"><button class="btn w-100 text-white" style="background:#0b7285;" id="ver"><i class="fa-solid fa-magnifying-glass"></i> Ver reporte</button></div>
+            </div>
+        </section>
+
+        <div class="row g-3 mb-3" id="resumen"></div>
+
+        <section class="tarjeta">
+            <div class="tabla-wrap">
+                <table class="table align-middle">
+                    <thead><tr><th>Día</th><th>Hora</th><th>Paciente</th><th>Médico</th><th>Método</th><th class="text-end">Monto</th></tr></thead>
+                    <tbody id="cuerpo"><tr><td colspan="6" class="cargando">Cargando…</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script src="js/app.js"></script>
+<script>
+(function () {
+    const $ = id => document.getElementById(id);
+    const hoy = new Date().toLocaleDateString('en-CA');
+    $('desde').value = hoy; $('hasta').value = hoy;
+
+    async function cargar() {
+        try {
+            const d = await Clinica.api('pagos.php?desde=' + $('desde').value + '&hasta=' + $('hasta').value);
+            const metodos = Object.entries(d.por_metodo).map(([m, t]) =>
+                `<div class="col-6 col-md-3"><div class="tarjeta h-100"><div class="small text-muted">${Clinica.esc(m)}</div><div class="fs-5 fw-semibold">Bs ${t.toFixed(2)}</div></div></div>`).join('');
+            $('resumen').innerHTML = `<div class="col-6 col-md-3"><div class="tarjeta h-100"><div class="small text-muted">Total cobrado</div><div class="fs-4 fw-bold">Bs ${d.total.toFixed(2)}</div><div class="small">${d.cantidad} cobro(s)</div></div></div>` + metodos;
+            $('cuerpo').innerHTML = d.cobros.length
+                ? d.cobros.map(c => `<tr>
+                    <td data-label="Día">${Clinica.esc(c.dia)}</td>
+                    <td data-label="Hora">${Clinica.esc(c.hora)}</td>
+                    <td data-label="Paciente">${Clinica.esc(c.paciente)}</td>
+                    <td data-label="Médico">Dr. ${Clinica.esc(c.medico)}</td>
+                    <td data-label="Método">${Clinica.esc(c.metodo_pago)}</td>
+                    <td data-label="Monto" class="text-end">Bs ${Number(c.monto).toFixed(2)}</td></tr>`).join('')
+                : '<tr><td colspan="6" class="text-muted">No hay cobros en ese rango de fechas.</td></tr>';
+        } catch (e) {
+            $('cuerpo').innerHTML = `<tr><td colspan="6" class="text-danger">${Clinica.esc(e.message)}</td></tr>`;
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        const usuario = await Clinica.requerirSesion();
+        if (!['Administrador', 'Recepcionista'].includes(usuario.rol)) { location.replace('inicio.html'); return; }
+        Clinica.dibujarMenu('pagos');
+        $('ver').addEventListener('click', cargar);
+        cargar();
+    });
+})();
+</script>
+</body>
+</html>

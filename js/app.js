@@ -13,6 +13,11 @@
         { href: 'medicos.html', icono: 'fa-user-doctor', texto: 'Médicos', id: 'medicos' },
     ];
     // El paciente solo ve sus citas y los médicos
+    // Opciones extra solo para recepción y administración
+    const MENU_PERSONAL_EXTRA = [
+        { href: 'envios.html', icono: 'fa-paper-plane', texto: 'Envíos', id: 'envios' },
+        { href: 'pagos.html', icono: 'fa-sack-dollar', texto: 'Pagos', id: 'pagos' },
+    ];
     const MENU_PACIENTE = [
         { href: 'mis-citas.html', icono: 'fa-calendar-check', texto: 'Mis citas', id: 'mis-citas' },
         { href: 'medicos.html', icono: 'fa-user-doctor', texto: 'Médicos', id: 'medicos' },
@@ -94,6 +99,9 @@
                     this.menu = MENU_PACIENTE;
                     const pagina = location.pathname.split('/').pop() || 'index.html';
                     if (!PAGINAS_PACIENTE.includes(pagina)) location.replace('mis-citas.html');
+                }
+                if (['Administrador', 'Recepcionista'].includes(d.usuario.rol)) {
+                    this.menu = MENU.concat(MENU_PERSONAL_EXTRA);
                 }
                 this.vigilarInactividad();
                 this.pintarAvisos();
