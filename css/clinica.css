@@ -1,0 +1,189 @@
+/* ARCHIVO: clinica.css | CAPA: FRONTEND | SIRVE PARA: estilos comunes de todas las pantallas de Clínica Vida Salud.
+   CONECTA CON: login.html, inicio.html, pacientes.html, citas.html, medicos.html (todas lo cargan). */
+:root {
+    --primario: #0b7285;
+    --primario-oscuro: #095a69;
+    --acento: #12b886;
+    --fondo: #f1f5f9;
+    --tarjeta: #ffffff;
+    --texto: #0f172a;
+    --texto-suave: #64748b;
+    --borde: #e2e8f0;
+    --peligro: #e03131;
+    --aviso: #f59f00;
+    --exito: #2b8a3e;
+    --sombra: 0 10px 25px -8px rgba(15, 23, 42, .12);
+}
+* { box-sizing: border-box; }
+body { background: var(--fondo); color: var(--texto); font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; margin: 0; }
+a { color: var(--primario); }
+
+/* ---------- Login ---------- */
+.pantalla-login { min-height: 100vh; display: grid; grid-template-columns: 1fr; }
+.panel-marca {
+    display: none;
+    background: linear-gradient(135deg, #0b7285 0%, #12b886 100%);
+    color: #fff; padding: 48px; position: relative; overflow: hidden;
+}
+.panel-marca h1 { font-weight: 800; font-size: 40px; line-height: 1.15; margin: 0 0 14px; }
+.panel-marca p { font-size: 17px; opacity: .92; max-width: 420px; }
+.panel-marca .pastilla { display: inline-block; background: rgba(255,255,255,.18); padding: 6px 14px; border-radius: 30px; margin: 4px 6px 4px 0; font-size: 14px; }
+.panel-marca .cruz { position: absolute; right: -60px; bottom: -60px; font-size: 300px; opacity: .08; }
+@media (min-width: 900px) { .pantalla-login { grid-template-columns: 1.1fr .9fr; } .panel-marca { display: block; } }
+
+.area-login { display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
+.card-login {
+    background: #fff; border-radius: 20px; box-shadow: 0 10px 25px -5px rgba(0,0,0,.08);
+    width: 100%; max-width: 390px; padding: 32px 26px;
+}
+.logo-clinica { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 6px; color: var(--primario); font-weight: 800; font-size: 20px; }
+.logo-clinica .icono { width: 42px; height: 42px; border-radius: 12px; background: var(--primario); color: #fff; display: grid; place-items: center; }
+.login-title { font-weight: 800; text-align: center; font-size: 20px; margin: 14px 0 22px; }
+.form-control, .form-select {
+    border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px 14px; font-size: 15px;
+}
+.form-control:focus, .form-select:focus { border-color: var(--primario); box-shadow: 0 0 0 3px rgba(11,114,133,.18); }
+.input-clave { position: relative; }
+.input-clave .form-control { padding-right: 44px; }
+.btn-ojo { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: 0; color: #94a3b8; padding: 6px; }
+.btn-ojo:hover { color: var(--primario); }
+.btn-principal {
+    background: var(--primario); color: #fff; border: 0; border-radius: 30px; font-weight: 700;
+    padding: 12px; width: 100%; box-shadow: 0 4px 12px rgba(11,114,133,.25); transition: .2s;
+}
+.btn-principal:hover { background: var(--primario-oscuro); color: #fff; }
+.btn-principal:disabled { background: #94a3b8; box-shadow: none; }
+.btn-suave { border-radius: 10px; }
+.nota-demo { font-size: 13px; color: var(--texto-suave); text-align: center; margin-top: 18px; }
+
+/* ---------- Estructura interna ---------- */
+.app { display: flex; min-height: 100vh; }
+.menu-lateral {
+    width: 240px; background: #0f172a; color: #cbd5e1; padding: 22px 14px; position: sticky; top: 0; height: 100vh;
+    display: flex; flex-direction: column; flex-shrink: 0;
+}
+.menu-lateral .marca { color: #fff; font-weight: 800; font-size: 18px; padding: 0 10px 22px; display: flex; gap: 10px; align-items: center; }
+.menu-lateral .marca i { color: var(--acento); }
+.menu-lateral a {
+    display: flex; align-items: center; gap: 12px; color: #cbd5e1; text-decoration: none;
+    padding: 11px 14px; border-radius: 10px; font-weight: 600; font-size: 15px; margin-bottom: 4px;
+}
+.menu-lateral a:hover { background: rgba(255,255,255,.07); color: #fff; }
+.menu-lateral a.activo { background: var(--primario); color: #fff; }
+.menu-lateral .pie { margin-top: auto; border-top: 1px solid rgba(255,255,255,.08); padding-top: 14px; font-size: 13px; }
+.contenido { flex: 1; min-width: 0; padding: 26px; }
+.encabezado { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+.encabezado h1 { font-size: 24px; font-weight: 800; margin: 0; }
+.encabezado p { margin: 2px 0 0; color: var(--texto-suave); }
+.menu-movil { display: none; }
+@media (max-width: 899px) {
+    .app { flex-direction: column; }
+    .menu-lateral { display: none; }
+    .menu-movil { display: flex; overflow-x: auto; gap: 8px; background: #0f172a; padding: 10px; position: sticky; top: 0; z-index: 50; }
+    .menu-movil a { color: #cbd5e1; white-space: nowrap; text-decoration: none; padding: 8px 12px; border-radius: 8px; font-weight: 600; font-size: 14px; }
+    .menu-movil a.activo { background: var(--primario); color: #fff; }
+    .contenido { padding: 16px; }
+}
+
+/* ---------- Tarjetas y métricas ---------- */
+.tarjeta { background: var(--tarjeta); border-radius: 16px; box-shadow: var(--sombra); padding: 20px; border: 1px solid var(--borde); }
+.tarjeta h2 { font-size: 17px; font-weight: 700; margin: 0 0 14px; }
+.metrica { display: flex; gap: 14px; align-items: center; }
+.metrica .circulo { width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; font-size: 22px; color: #fff; flex-shrink: 0; }
+.metrica .numero { font-size: 28px; font-weight: 800; line-height: 1; }
+.metrica .etiqueta { color: var(--texto-suave); font-size: 14px; margin-top: 4px; }
+.bg-teal { background: #0b7285; } .bg-verde { background: #2b8a3e; } .bg-azul { background: #1971c2; } .bg-naranja { background: #e8590c; }
+
+.barra { height: 10px; border-radius: 10px; background: #e2e8f0; overflow: hidden; margin-bottom: 12px; }
+.barra > div { height: 100%; background: linear-gradient(90deg, #0b7285, #12b886); border-radius: 10px; }
+.etiqueta-barra { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 4px; }
+
+/* ---------- Tablas y etiquetas de estado ---------- */
+.tabla-wrap { overflow-x: auto; }
+.table { --bs-table-bg: transparent; font-size: 15px; }
+.table thead th { font-size: 13px; text-transform: uppercase; letter-spacing: .03em; color: var(--texto-suave); border-bottom-width: 1px; }
+.estado { display: inline-block; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 20px; }
+.estado-Programada { background: #e7f5ff; color: #1864ab; }
+.estado-Confirmada { background: #e6fcf5; color: #087f5b; }
+.estado-Atendida { background: #ebfbee; color: #2b8a3e; }
+.estado-Cancelada { background: #fff5f5; color: #c92a2a; }
+.estado-Inasistencia { background: #fff9db; color: #e67700; }
+.estado-activo { background: #ebfbee; color: #2b8a3e; }
+.estado-inactivo { background: #f1f3f5; color: #868e96; }
+.buscador { max-width: 320px; }
+.chip { display: inline-block; background: #e6fcf5; color: #087f5b; border-radius: 20px; font-size: 13px; font-weight: 600; padding: 3px 10px; margin: 2px 4px 2px 0; }
+.hora { font-weight: 700; color: var(--primario); }
+
+/* ---------- Tarjetas de médicos ---------- */
+.medico-card { display: flex; flex-direction: column; gap: 10px; }
+.avatar { width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; background: #e6fcf5; color: #087f5b; font-weight: 800; font-size: 20px; }
+.lista-horarios { font-size: 14px; color: var(--texto-suave); padding-left: 0; list-style: none; margin: 0; }
+.lista-horarios li { padding: 3px 0; }
+
+/* ---------- Línea de tiempo (próximas citas) ---------- */
+.linea-tiempo { list-style: none; margin: 0; padding: 0; }
+.linea-tiempo li { display: flex; gap: 14px; padding: 12px 0; border-bottom: 1px dashed var(--borde); }
+.linea-tiempo li:last-child { border-bottom: 0; }
+.linea-tiempo .bloque-hora { min-width: 70px; text-align: center; background: #e6fcf5; color: #087f5b; border-radius: 12px; padding: 8px 6px; font-weight: 800; }
+.linea-tiempo .bloque-hora small { display: block; font-weight: 600; font-size: 11px; color: #0b7285; }
+
+/* ---------- Avisos flotantes ---------- */
+.avisos { position: fixed; right: 16px; bottom: 16px; z-index: 2000; display: flex; flex-direction: column; gap: 8px; max-width: 360px; }
+.aviso-toast { background: #0f172a; color: #fff; border-radius: 12px; padding: 12px 16px; box-shadow: var(--sombra); font-size: 14px; animation: entrar .25s ease; }
+.aviso-toast.error { background: var(--peligro); }
+.aviso-toast.ok { background: var(--exito); }
+@keyframes entrar { from { transform: translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.vacio { text-align: center; color: var(--texto-suave); padding: 30px 10px; }
+.vacio i { font-size: 34px; color: #cbd5e1; margin-bottom: 8px; display: block; }
+.cargando { text-align: center; padding: 30px; color: var(--texto-suave); }
+
+/* ---------- Modo oscuro ---------- */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --fondo: #0b1220; --tarjeta: #111a2e; --texto: #e2e8f0; --texto-suave: #94a3b8; --borde: #1e293b;
+    }
+    :root:not([data-theme="light"]) .card-login { background: #111a2e; }
+    :root:not([data-theme="light"]) .form-control, :root:not([data-theme="light"]) .form-select { background: #0b1220; color: #e2e8f0; border-color: #334155; }
+    :root:not([data-theme="light"]) .estado-Programada { background: #1c2e4a; }
+    :root:not([data-theme="light"]) .linea-tiempo .bloque-hora { background: #0d2c2a; color: #7ee0bd; }
+}
+:root[data-theme="dark"] {
+    --fondo: #0b1220; --tarjeta: #111a2e; --texto: #e2e8f0; --texto-suave: #94a3b8; --borde: #1e293b;
+}
+:root[data-theme="dark"] .card-login { background: #111a2e; }
+:root[data-theme="dark"] .form-control, :root[data-theme="dark"] .form-select { background: #0b1220; color: #e2e8f0; border-color: #334155; }
+:root[data-theme="dark"] .modal-content { background: #111a2e; color: #e2e8f0; }
+:root[data-theme="dark"] .table { color: #e2e8f0; }
+body { background-color: var(--fondo); }
+.btn-tema { background: transparent; border: 1px solid var(--borde); color: var(--texto); border-radius: 10px; padding: 6px 12px; }
+.menu-lateral .btn-tema { color: #e2e8f0; border-color: rgba(255,255,255,.25); }
+.menu-lateral .btn-tema:hover { background: rgba(255,255,255,.08); color: #fff; }
+
+/* ---------- Reserva por voz ---------- */
+.btn-micro {
+    background: var(--primario); color: #fff; border: 0; border-radius: 50px;
+    font-size: 18px; font-weight: 800; padding: 16px 26px; min-width: 170px;
+    box-shadow: 0 6px 16px rgba(11,114,133,.3); transition: transform .15s;
+}
+.btn-micro:hover { transform: scale(1.03); background: var(--primario-oscuro); }
+.btn-micro:disabled { background: #94a3b8; box-shadow: none; }
+.btn-micro.escuchando { background: var(--peligro); animation: latido 1.1s infinite; }
+@keyframes latido { 0%,100% { box-shadow: 0 0 0 0 rgba(224,49,49,.5); } 50% { box-shadow: 0 0 0 16px rgba(224,49,49,0); } }
+
+/* ---------- Tablas en celular: cada fila se convierte en una tarjeta ---------- */
+@media (max-width: 640px) {
+    .tabla-wrap table, .tabla-wrap tbody, .tabla-wrap tr, .tabla-wrap td { display: block; width: 100%; }
+    .tabla-wrap thead { display: none; }
+    .tabla-wrap tr {
+        border: 1px solid var(--borde); border-radius: 14px; padding: 12px; margin-bottom: 12px; background: var(--tarjeta);
+    }
+    .tabla-wrap td { border: 0 !important; padding: 4px 0 !important; text-align: left !important; }
+    .tabla-wrap td[data-label]::before {
+        content: attr(data-label); display: block; font-size: 11px; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .04em; color: var(--texto-suave);
+    }
+    .tabla-wrap td.text-end { margin-top: 8px; }
+    .tabla-wrap td.text-end::before { display: none; }
+    .tarjeta { padding: 14px; }
+}
