@@ -139,7 +139,7 @@
             };
 
             rec.onerror = (ev) => {
-                if (ev.error === 'no-speech') return;   // silencio: se reinicia en onend
+                if (ev.error === 'no-speech' || ev.error === 'aborted') return;   // silencio o parada normal: no es error
                 escuchando = false;
                 const mensajes = {
                     'not-allowed': 'El navegador no tiene permiso para el micrófono. Toque el candado de la barra de direcciones y permítalo.',
