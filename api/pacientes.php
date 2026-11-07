@@ -59,6 +59,13 @@ $id = isset($_GET['id']) && ctype_digit((string) $_GET['id']) ? (int) $_GET['id'
 
 if ($metodo === 'GET') {
     $columnas = 'id_paciente, codigo, ci, nombres, apellidos, fecha_nacimiento, sexo, telefono, correo, direccion, activo, fecha_registro';
+    // Un paciente solo puede ver su propia ficha
+    if ($usuario['rol'] === ROL_PACIENTE) {
+        $propia = (int) ($usuario['id_paciente'] ?? 0);
+        $st = $pdo->prepare("SELECT {$columnas} FROM paciente WHERE id_paciente = :id");
+        $st->execute([':id' => $propia]);
+        json_responder(200, ['pacientes' => $st->fetchAll()]);
+    }
     if ($id !== null) {
         $st = $pdo->prepare("SELECT {$columnas} FROM paciente WHERE id_paciente = :id");
         $st->execute([':id' => $id]);

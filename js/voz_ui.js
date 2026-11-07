@@ -17,6 +17,7 @@
     let medicos = [];
     let reconocimiento = null;
     let escuchando = false;   // se usa para parar la escucha si la persona vuelve a tocar el micrófono
+    let esPaciente = false;   // el paciente reserva para sí mismo; el servidor lo identifica por su sesión
 
     function hablar(texto) {
         try {
@@ -82,6 +83,8 @@
     function mostrarFormulario(r) {
         $('formVoz').classList.remove('d-none');
         $('vCi').value = r.ci || '';
+        // El paciente no dicta su CI: el servidor usa su propia cuenta
+        if (esPaciente) r.faltantes = r.faltantes.filter(f => f !== 'CI del paciente');
         llenarMedicos(r.medico ? r.medico.id_medico : '');
         llenarEspecialidades(r.especialidad);
         $('vFecha').value = r.fecha || '';
@@ -181,31 +184,37 @@
         const ci = $('vCi').value.trim();
         const medico = $('vMedico').value, especialidad = $('vEspecialidad').value;
         const fecha = $('vFecha').value, hora = $('vHora').value;
-        if (!/^\d{5,15}$/.test(ci)) return mostrarAviso('vAviso', 'El CI debe tener entre 5 y 15 números.', 'danger');
+        if (!esPaciente && !/^\d{5,15}$/.test(ci)) return mostrarAviso('vAviso', 'El CI debe tener entre 5 y 15 números.', 'danger');
         if (!medico || !fecha || !hora) return mostrarAviso('vAviso', 'Falta elegir médico, día u hora.', 'danger');
 
         const boton = $('vConfirmar');
         boton.disabled = true;
         try {
-            const d = await Clinica.api('pacientes.php?q=' + encodeURIComponent(ci));
-            const p = d.pacientes.find(x => x.ci === ci);
-            if (!p) {
-                return mostrarAviso('vAviso',
-                    `No encontré un paciente con el CI <strong>${Clinica.esc(ci)}</strong>. ` +
-                    `<a href="pacientes.html?nuevo=1">Regístrelo primero</a> y vuelva a intentarlo.`, 'danger');
+            let idPaciente = null, nombre = '';
+            if (!esPaciente) {
+                const d = await Clinica.api('pacientes.php?q=' + encodeURIComponent(ci));
+                const p = d.pacientes.find(x => x.ci === ci);
+                if (!p) {
+                    return mostrarAviso('vAviso',
+                        `No encontré un paciente con el CI <strong>${Clinica.esc(ci)}</strong>. ` +
+                        `<a href="pacientes.html?nuevo=1">Regístrelo primero</a> y vuelva a intentarlo.`, 'danger');
+                }
+                if (!p.activo) return mostrarAviso('vAviso', 'Ese paciente está inactivo. Actívelo antes de reservar.', 'danger');
+                idPaciente = p.id_paciente;
+                nombre = p.nombres;
             }
-            if (!p.activo) return mostrarAviso('vAviso', 'Ese paciente está inactivo. Actívelo antes de reservar.', 'danger');
 
-            const r = await Clinica.api('citas.php', { metodo: 'POST', datos: {
-                accion: 'crear', paciente: p.id_paciente, medico, especialidad, fecha, hora,
-                motivo: $('vMotivo').value.trim(),
-            }});
+            // Si es paciente, el servidor pone su propia cuenta; no hace falta enviar el id
+            const datos = { accion: 'crear', medico, especialidad, fecha, hora, motivo: $('vMotivo').value.trim() };
+            if (idPaciente) datos.paciente = idPaciente;
+            await Clinica.api('citas.php', { metodo: 'POST', datos });
             const med = medicos.find(m => String(m.id_medico) === medico);
-            hablar(`Cita reservada para ${p.nombres}, con el doctor ${med ? med.apellidos : ''}, el día ${fecha.slice(8)} a las ${hora.replace(':', ' y ')}.`);
+            hablar(`Cita reservada${nombre ? ' para ' + nombre : ''}, con el doctor ${med ? med.apellidos : ''}, el día ${fecha.slice(8)} a las ${hora.replace(':', ' y ')}.`);
             Clinica.toast('Cita reservada por voz.');
             $('formVoz').classList.add('d-none');
             $('textoVoz').value = '';
             decir('Cita reservada. Puede dictar otra.');
+            document.dispatchEvent(new Event('cita-reservada'));
         } catch (e) {
             mostrarAviso('vAviso', Clinica.esc(e.message), 'danger');
         } finally {
@@ -216,8 +225,13 @@
     // ---------- Arranque ----------
     document.addEventListener('DOMContentLoaded', async () => {
         const usuario = await Clinica.requerirSesion();   // también obtiene el token CSRF
-        const esPersonal = ['Administrador', 'Recepcionista'].includes(usuario.rol);
-        if (!esPersonal) { panel.classList.add('d-none'); return; }
+        // Personal y pacientes pueden reservar por voz; el médico no reserva
+        const puede = ['Administrador', 'Recepcionista', 'Paciente'].includes(usuario.rol);
+        if (!puede) { panel.classList.add('d-none'); return; }
+        esPaciente = usuario.rol === 'Paciente';
+        if (esPaciente) {
+            $('vCi').closest('.col-md-3').classList.add('d-none');
+        }
 
         if (!SR) {
             $('btnMicro').disabled = true;

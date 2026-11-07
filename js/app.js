@@ -12,6 +12,12 @@
         { href: 'citas.html', icono: 'fa-calendar-check', texto: 'Citas', id: 'citas' },
         { href: 'medicos.html', icono: 'fa-user-doctor', texto: 'Médicos', id: 'medicos' },
     ];
+    // El paciente solo ve sus citas y los médicos
+    const MENU_PACIENTE = [
+        { href: 'mis-citas.html', icono: 'fa-calendar-check', texto: 'Mis citas', id: 'mis-citas' },
+        { href: 'medicos.html', icono: 'fa-user-doctor', texto: 'Médicos', id: 'medicos' },
+    ];
+    const PAGINAS_PACIENTE = ['mis-citas.html', 'medicos.html'];
 
     const Clinica = {
         csrf: null,
@@ -53,6 +59,11 @@
                 const d = await this.api('sesion.php');
                 this.csrf = d.csrf;
                 this.usuario = d.usuario;
+                if (d.usuario.rol === 'Paciente') {
+                    this.menu = MENU_PACIENTE;
+                    const pagina = location.pathname.split('/').pop() || 'index.html';
+                    if (!PAGINAS_PACIENTE.includes(pagina)) location.replace('mis-citas.html');
+                }
                 return d.usuario;
             } catch (e) {
                 location.replace('entrar.html');
@@ -67,10 +78,10 @@
 
         /** Dibuja el menú lateral (escritorio) y el menú superior (móvil) dentro de #menu. */
         dibujarMenu(activo) {
-            const lateral = MENU.map(m => `
+            const lateral = this.menu.map(m => `
                 <a href="${m.href}" class="${m.id === activo ? 'activo' : ''}">
                     <i class="fa-solid ${m.icono}"></i> ${m.texto}</a>`).join('');
-            const movil = MENU.map(m => `
+            const movil = this.menu.map(m => `
                 <a href="${m.href}" class="${m.id === activo ? 'activo' : ''}">${m.texto}</a>`).join('');
             const u = this.usuario || {};
             const cont = document.getElementById('menu');
