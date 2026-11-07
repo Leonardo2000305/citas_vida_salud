@@ -100,7 +100,19 @@
         const tokens = t.split(' ');
         const r = { texto, ci: null, medico: null, especialidad: null, fecha: null, hora: null, faltantes: [] };
 
-        r.ci = dígitosHablados(tokens);
+        // CI dicho después de la palabra CI/carnet: se juntan todos los números, aunque el
+        // reconocedor de voz los separe con ":" o espacios (ej. "11:30 5021" = 11305021).
+        // Ese tramo se quita del texto para que no se confunda con una hora.
+        let textoSinCi = t;
+        const porPalabra = t.match(/\b(?:ci|carnet|cedula|c i)\b\s*(?:es|:|numero|nro)?\s*([\d:.\s-]+)/);
+        if (porPalabra) {
+            const digitos = porPalabra[1].replace(/\D/g, '');
+            if (digitos.length >= 5) {
+                r.ci = digitos;
+                textoSinCi = t.replace(porPalabra[0], ' ');
+            }
+        }
+        if (!r.ci) r.ci = dígitosHablados(tokens);
 
         // Médico: por apellido o nombre (si la frase no menciona ninguno, queda vacío)
         r.medico = medicos.find(m => {
@@ -122,8 +134,8 @@
         }
         if (!r.especialidad && listaEsp.length === 1) r.especialidad = listaEsp[0];
 
-        r.fecha = leerFecha(t, hoy);
-        r.hora = leerHora(t);
+        r.fecha = leerFecha(textoSinCi, hoy);
+        r.hora = leerHora(textoSinCi);
 
         if (!r.ci) r.faltantes.push('CI del paciente');
         if (!r.medico) r.faltantes.push('médico');
