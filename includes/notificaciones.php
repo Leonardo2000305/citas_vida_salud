@@ -72,12 +72,20 @@ function notificar_paciente(PDO $pdo, int $idPaciente, string $asunto, string $m
 function detalle_cita(PDO $pdo, int $idCita): string
 {
     $st = $pdo->prepare(
-        "SELECT m.apellidos, to_char(c.inicio, 'DD/MM/YYYY') AS dia, to_char(c.inicio, 'HH24:MI') AS hora
-           FROM cita c JOIN medico m ON m.id_medico = c.id_medico WHERE c.id_cita = :c"
+        "SELECT m.apellidos, to_char(c.inicio, 'DD/MM/YYYY') AS dia, to_char(c.inicio, 'HH24:MI') AS hora,
+                d.apellidos AS derivador
+           FROM cita c
+           JOIN medico m ON m.id_medico = c.id_medico
+           LEFT JOIN medico d ON d.id_medico = c.derivado_por
+          WHERE c.id_cita = :c"
     );
     $st->execute([':c' => $idCita]);
     $f = $st->fetch();
-    return $f ? "Dr. {$f['apellidos']} el {$f['dia']} a las {$f['hora']}" : '';
+    if (!$f) {
+        return '';
+    }
+    $texto = "Dr. {$f['apellidos']} el {$f['dia']} a las {$f['hora']}";
+    return $f['derivador'] ? "{$texto} (derivada por el Dr. {$f['derivador']})" : $texto;
 }
 
 /** Cuando se libera una hora, avisa a quienes esperaban ese médico ese día. */

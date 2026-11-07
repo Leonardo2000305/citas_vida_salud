@@ -78,11 +78,15 @@
     <div class="modal-dialog modal-lg">
         <form class="modal-content" id="formNueva" novalidate>
             <div class="modal-header">
-                <h5 class="modal-title">Programar cita</h5>
+                <h5 class="modal-title" id="tituloNueva">Programar cita</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
             <div class="modal-body">
                 <div id="errorNueva" class="alert alert-danger d-none"></div>
+                <div id="avisoDerivacion" class="alert alert-info small d-none">
+                    <i class="fa-solid fa-share-nodes"></i> <strong>Derivación:</strong> reserve la cita con otro médico para su paciente.
+                    Quedará registrado que usted la derivó y el paciente recibirá el aviso.
+                </div>
                 <div class="row g-3">
                     <div class="col-md-6"><label class="form-label">Paciente *</label>
                         <select class="form-select" id="nPaciente" required></select></div>
@@ -94,7 +98,7 @@
                         <input type="date" class="form-control" id="nFecha" required></div>
                     <div class="col-md-3"><label class="form-label">Hora libre *</label>
                         <select class="form-select" id="nHora" required><option value="">Elija médico y fecha</option></select></div>
-                    <div class="col-12"><label class="form-label">Motivo de la consulta</label>
+                    <div class="col-12"><label class="form-label" id="motivoLabel">Motivo de la consulta</label>
                         <input class="form-control" id="nMotivo" maxlength="200" placeholder="Ej.: control anual, dolor de cabeza…"></div>
                 </div>
                 <p class="small text-muted mt-3 mb-0"><i class="fa-solid fa-circle-info"></i>
@@ -224,7 +228,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             <a href="citas.html" class="small ms-2">Quitar filtro</a>`;
         $('subtitulo').textContent = 'Historial de citas del paciente.';
     }
-    if (esMedico) $('btnNueva').classList.add('d-none');
 
     async function cargarMedicos() {
         const d = await Clinica.api('especialidades_medicos.php?tipo=medicos');
@@ -398,6 +401,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <div class="small text-muted">${Clinica.esc(c.ci)} · ${Clinica.esc(c.telefono_paciente)}</div></td>
                     <td data-label="Médico"><div>Dr. ${Clinica.esc(c.nombres_medico)} ${Clinica.esc(c.apellidos_medico)}</div>
                         <div class="small text-muted">${Clinica.esc(c.especialidad)}</div>
+                        ${c.derivado_por ? `<span class="badge bg-info text-dark"><i class="fa-solid fa-share-nodes"></i> Derivada por Dr. ${Clinica.esc(c.apellidos_derivador)}</span>` : ''}
                         ${c.motivo ? `<div class="small"><em>${Clinica.esc(c.motivo)}</em></div>` : ''}</td>
                     <td data-label="Estado">${Clinica.estadoBadge(c.estado)}${motivo}</td>
                     <td data-label="Acciones" class="text-end text-nowrap">${acciones(c)}</td>
@@ -478,6 +482,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .map(p => `<option value="${p.id_paciente}">${Clinica.esc(p.apellidos)}, ${Clinica.esc(p.nombres)} (${Clinica.esc(p.ci)})</option>`).join('');
             pacientesCargados = true;
         }
+        // Médico: deriva a OTRO médico (no puede elegirse a sí mismo)
+        if (esMedico) {
+            const propio = Number(Clinica.usuario.id_medico);
+            $('nMedico').innerHTML = '<option value="">Seleccione…</option>' + medicos
+                .filter(m => Number(m.id_medico) !== propio)
+                .map(m => `<option value="${m.id_medico}">Dr. ${Clinica.esc(m.nombres)} ${Clinica.esc(m.apellidos)}</option>`).join('');
+        }
+        $('tituloNueva').textContent = esMedico ? 'Derivar paciente a otro médico' : 'Programar cita';
+        $('avisoDerivacion').classList.toggle('d-none', !esMedico);
+        $('motivoLabel').textContent = esMedico ? 'Motivo de la derivación *' : 'Motivo de la consulta';
         const preMed = params.get('medico');
         if (preMed) $('nMedico').value = preMed;
         filtrarEspecialidades();
@@ -504,6 +518,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             mostrarError('errorNueva', 'Complete paciente, médico, especialidad, fecha y hora.');
             return;
         }
+        if (esMedico && !datos.motivo) {
+            mostrarError('errorNueva', 'Escriba el motivo de la derivación.');
+            return;
+        }
         const boton = $('btnGuardarNueva');
         boton.disabled = true;
         try {
@@ -525,7 +543,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     await Promise.all([cargarMedicos(), cargarEspecialidades()]);
-    if (params.get('nueva') === '1' && puedeGestionar) abrirNueva().catch(() => {});
+    if (params.get('nueva') === '1' && puedeAgenda) abrirNueva().catch(() => {});
     cargarCitas();
 });
 </script>

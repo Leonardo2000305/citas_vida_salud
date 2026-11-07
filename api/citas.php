@@ -23,11 +23,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                    c.id_paciente, p.codigo AS codigo_paciente, p.ci, p.nombres AS nombres_paciente,
                    p.apellidos AS apellidos_paciente, p.telefono AS telefono_paciente,
                    c.id_medico, m.nombres AS nombres_medico, m.apellidos AS apellidos_medico,
-                   c.id_especialidad, e.nombre AS especialidad
+                   c.id_especialidad, e.nombre AS especialidad,
+                   c.derivado_por, d.apellidos AS apellidos_derivador
               FROM cita c
               JOIN paciente p ON p.id_paciente = c.id_paciente
               JOIN medico m ON m.id_medico = c.id_medico
               JOIN especialidad e ON e.id_especialidad = c.id_especialidad
+              LEFT JOIN medico d ON d.id_medico = c.derivado_por
              WHERE 1 = 1";
     $params = [];
     if (!empty($_GET['fecha']) && fecha_valida((string) $_GET['fecha'])) {
@@ -51,9 +53,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $sql .= ' AND c.id_paciente = :yo';
         $params[':yo'] = (int) ($usuario['id_paciente'] ?? 0);
     }
-    // Un médico solo ve su propia agenda
+    // Un médico ve su propia agenda y las citas que derivó a otro médico
     if ($usuario['rol'] === ROL_MEDICO && $usuario['id_medico'] !== null) {
-        $sql .= ' AND c.id_medico = :propio';
+        $sql .= ' AND (c.id_medico = :propio OR c.derivado_por = :propio)';
         $params[':propio'] = $usuario['id_medico'];
     }
     $sql .= ' ORDER BY c.inicio DESC LIMIT 300';
@@ -77,7 +79,7 @@ $accion = (string) ($datos['accion'] ?? '');
 
 try {
     if ($accion === 'crear') {
-        $quien = json_requerir([ROL_ADMIN, ROL_RECEPCION, ROL_PACIENTE]);
+        $quien = json_requerir([ROL_ADMIN, ROL_RECEPCION, ROL_PACIENTE, ROL_MEDICO]);
         $d = [
             // El paciente siempre reserva para sí mismo; el personal elige el paciente
             'paciente'      => $quien['rol'] === ROL_PACIENTE ? (int) ($quien['id_paciente'] ?? 0) : (int) ($datos['paciente'] ?? 0),
@@ -86,11 +88,26 @@ try {
             'fecha'         => (string) ($datos['fecha'] ?? ''),
             'hora'          => (string) ($datos['hora'] ?? ''),
             'motivo'        => trim((string) ($datos['motivo'] ?? '')),
+            'derivado_por'  => null,
         ];
+        // Derivación: el médico que atiende programa una cita con OTRO médico para su paciente
+        if ($quien['rol'] === ROL_MEDICO) {
+            $propio = (int) ($quien['id_medico'] ?? 0);
+            if ($propio === 0) {
+                json_error(403, 'Su usuario no está ligado a un médico.');
+            }
+            if ($d['medico'] === $propio) {
+                json_error(400, 'Para derivar, elija otro médico.');
+            }
+            if ($d['motivo'] === '') {
+                json_error(400, 'Escriba el motivo de la derivación.');
+            }
+            $d['derivado_por'] = $propio;
+        }
         $id = crear_cita($pdo, $d, $quien['id']);
         notificar_paciente($pdo, $d['paciente'], 'Cita reservada',
             'Su cita fue reservada: ' . detalle_cita($pdo, $id) . ". Número de cita #{$id}. Llegue 10 minutos antes.");
-        json_responder(201, ['id' => $id, 'mensaje' => 'Cita programada correctamente.']);
+        json_responder(201, ['id' => $id, 'mensaje' => $d['derivado_por'] ? 'Derivación registrada. El paciente recibió su cita.' : 'Cita programada correctamente.']);
     }
 
     if ($accion === 'reprogramar') {

@@ -132,6 +132,7 @@ CREATE TABLE cita (
     motivo_cancelacion   VARCHAR(200),
     fecha_creacion       TIMESTAMP    NOT NULL DEFAULT now(),
     id_usuario_registro  INT REFERENCES usuario(id_usuario),
+    derivado_por         INT REFERENCES medico(id_medico),   -- médico que deriva al paciente a otro médico (NULL si no es derivación)
     CHECK (fin > inicio),
     EXCLUDE USING gist (
         id_medico WITH =,
