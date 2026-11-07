@@ -157,7 +157,46 @@
         cargarHoras();
     }
 
+    /** Próximos 7 días con horas libres del médico: botones para elegir sin saber sus horarios. */
+    async function mostrarOpciones(medico) {
+        const caja = $('vOpciones');
+        caja.innerHTML = '<span class="small text-muted">Buscando horarios del doctor…</span>';
+        caja.classList.remove('d-none');
+        const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+        const dias = [];
+        for (let k = 0; k < 7; k++) {
+            const d = new Date(hoy); d.setDate(d.getDate() + k);
+            dias.push(d.toLocaleDateString('en-CA'));
+        }
+        const resultados = await Promise.all(dias.map(f => horasLibres(medico.id_medico, f).then(h => [f, h]).catch(() => [f, []])));
+        let html = `<div class="small mb-2">Horarios libres de <strong>Dr. ${Clinica.esc(medico.apellidos)}</strong> en los próximos 7 días. Toque el que le convenga:</div>`;
+        let total = 0;
+        for (const [f, horas] of resultados) {
+            if (!horas.length) continue;
+            const dia = new Date(f + 'T00:00:00').toLocaleDateString('es-BO', { weekday: 'short', day: '2-digit', month: '2-digit' });
+            html += `<div class="mb-2"><span class="small fw-semibold me-2">${Clinica.esc(dia)}:</span>` +
+                horas.map(h => `<button type="button" class="btn btn-sm btn-outline-primary m-1" data-fecha="${f}" data-hora="${h.valor}">${Clinica.esc(h.valor)}</button>`).join('') +
+                '</div>';
+            total += horas.length;
+        }
+        if (!total) html = `<div class="small">Dr. ${Clinica.esc(medico.apellidos)} no tiene horas libres en los próximos 7 días. Elija otro médico o pida ayuda en recepción.</div>`;
+        caja.innerHTML = html;
+        hablar(total ? 'Estos son los horarios libres del doctor. Toque el que le convenga.' : 'El doctor no tiene horas en los próximos días.');
+    }
+
+    $('vOpciones') && $('vOpciones').addEventListener('click', async (ev) => {
+        const b = ev.target.closest('button[data-fecha]');
+        if (!b) return;
+        $('vFecha').value = b.dataset.fecha;
+        mostrarForm();
+        $('vOpciones').classList.add('d-none');
+        await cargarHoras(b.dataset.hora);
+        $('vHora').value = b.dataset.hora;
+        mostrarAviso('vAviso', `Revise los datos: ${fechaLarga(b.dataset.fecha)} a las ${Clinica.esc(b.dataset.hora)}. Luego confirme.`, 'info');
+    });
+
     function mostrarFormulario(r) {
+        $('vOpciones').classList.add('d-none');
         $('vCi').value = r.ci || '';
         // El paciente no dicta su CI: el servidor usa su propia cuenta
         if (esPaciente) r.faltantes = r.faltantes.filter(f => f !== 'CI del paciente');
@@ -168,6 +207,15 @@
         $('vMotivo').value = '';
         $('vAviso').classList.add('d-none');
         $('vResumen').textContent = r.texto ? `Usted dijo: «${r.texto}»` : '';
+
+        // Sin día u hora: se muestran los horarios libres del médico para que elija
+        if (r.medico && (!r.fecha || !r.hora)) {
+            mostrarForm();
+            if (r.fecha) cargarHoras(r.hora);
+            mostrarOpciones(r.medico);
+            hablar('Dígame el día u hora, o toque uno de los horarios libres del doctor.');
+            return;
+        }
 
         if (r.medico && r.fecha) {
             horasLibres(r.medico.id_medico, r.fecha).then(async (horas) => {
