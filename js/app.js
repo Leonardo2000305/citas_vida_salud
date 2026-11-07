@@ -53,6 +53,37 @@
             return cuerpo;
         },
 
+        /** Aviso "¿Sigue ahí?" tras 12 minutos sin tocar la página (el servidor cierra a los 15). */
+        vigilarInactividad() {
+            if (this._vigilando) return;   // una sola vigilancia por página
+            this._vigilando = true;
+            const LIMITE = 12 * 60 * 1000;
+            let ultima = Date.now();
+            let aviso = null;
+            const marcar = (ev) => {
+                if (aviso && ev && aviso.contains(ev.target)) return;   // tocar el propio aviso no lo quita
+                ultima = Date.now();
+                if (aviso) { aviso.remove(); aviso = null; }
+            };
+            ['pointerdown', 'keydown', 'touchstart', 'input'].forEach(e => document.addEventListener(e, marcar, { passive: true }));
+            setInterval(() => {
+                if (aviso || Date.now() - ultima < LIMITE) return;
+                aviso = document.createElement('div');
+                aviso.className = 'alert alert-warning position-fixed bottom-0 start-50 translate-middle-x m-3 shadow';
+                aviso.style.zIndex = '2000';
+                aviso.setAttribute('role', 'alertdialog');
+                aviso.innerHTML = '<div class="d-flex align-items-center gap-3 flex-wrap">' +
+                    '<strong>¿Sigue ahí?</strong>' +
+                    '<span class="small">Por seguridad, la sesión se cerrará si no responde.</span>' +
+                    '<button type="button" class="btn btn-sm btn-primary">Sí, seguir</button></div>';
+                aviso.querySelector('button').addEventListener('click', async () => {
+                    try { await this.api('sesion.php'); marcar(); }
+                    catch (e) { location.replace('entrar.html'); }
+                });
+                document.body.appendChild(aviso);
+            }, 30 * 1000);
+        },
+
         /** Exige sesión: si no hay, lleva al login. Devuelve el usuario. */
         async requerirSesion() {
             try {
@@ -64,6 +95,7 @@
                     const pagina = location.pathname.split('/').pop() || 'index.html';
                     if (!PAGINAS_PACIENTE.includes(pagina)) location.replace('mis-citas.html');
                 }
+                this.vigilarInactividad();
                 return d.usuario;
             } catch (e) {
                 location.replace('entrar.html');
