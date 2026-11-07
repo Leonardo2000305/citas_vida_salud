@@ -194,9 +194,9 @@
 
     // DATOS DE LA CLÍNICA: editar aquí (aparecen en todas las pantallas)
     Clinica.INFO = {
-        emergencias: '[poner número de emergencias]',
-        telefono: '[poner teléfono de recepción]',
-        horario: '[poner horario de atención, por ejemplo: lunes a viernes 8:00 a 18:00]',
+        emergencias: '911',
+        telefono: '77640394',
+        horario: '8:00 a 22:00',
     };
 
     // Qué hacer antes de la consulta, según la especialidad (clave = nombre sin tildes, en minúsculas)

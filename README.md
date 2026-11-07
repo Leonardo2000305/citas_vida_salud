@@ -17,46 +17,56 @@ administrativo de la clínica: pacientes, médicos, especialidades, horarios, ci
 
 ## Instalación
 
-### 1. Crear la base de datos
+El sistema funciona en tres partes:
 
-```bash
-createdb -U postgres citas_vida_salud
-psql -U postgres -d citas_vida_salud -f sql/schema.sql
+- **Vercel**: muestra las páginas (HTML, CSS y JavaScript). El archivo `vercel.json` manda las peticiones `/backend/...` al servidor PHP.
+- **AlwaysData**: tiene el servidor PHP (`api/`) y la base de datos PostgreSQL.
+- **Git / GitHub**: guarda el código. Al cambiar `main`, Vercel publica solo.
+
+### 1. Crear la base de datos (AlwaysData, PostgreSQL)
+
+1. Crear la base de datos y el usuario en el panel de AlwaysData.
+2. Ejecutar en orden, en la pestaña SQL de phpPgAdmin:
+   - `sql/schema.sql` (tablas y datos de ejemplo)
+   - `sql/migracion_cuentas_pacientes.sql` (cuentas de pacientes)
+   - `sql/migracion_avisos_pagos.sql` (avisos, lista de espera y pagos)
+
+   Si phpPgAdmin da error al ejecutar las migraciones, usar los archivos de un solo uso `api/migrar_cuentas.php` y `api/migrar_avisos_pagos.php`, que se borran solos al terminar.
+
+### 2. Configurar el servidor (AlwaysData)
+
+Crear el archivo `config/local.php` **en el servidor, no en el repositorio** (está en `.gitignore`):
+
+```php
+<?php
+return [
+    'DB_HOST'            => 'postgresql-SU_CUENTA.alwaysdata.net',
+    'DB_PORT'            => '5432',
+    'DB_NAME'            => 'SU_BASE_DE_DATOS',
+    'DB_USER'            => 'SU_USUARIO',
+    'DB_PASS'            => 'SU_CONTRASEÑA',
+    'BREVO_API_KEY'      => 'CLAVE_DE_BREVO',
+    'BREVO_REMITENTE'    => 'correo_verificado_en_brevo@ejemplo.com',
+    'RECORDATORIO_TOKEN' => 'UN_TEXTO_LARGO_Y_SECRETO',
+];
 ```
 
-En Windows (XAMPP o PostgreSQL instalado) puede usar pgAdmin: cree la base `citas_vida_salud` y
-ejecute el contenido de `sql/schema.sql` en la pestaña de consultas.
+Los archivos de `api/` y `includes/` se copian a la carpeta `www` del sitio en AlwaysData.
 
-### 2. Configurar la conexión
+### 3. Tareas programadas (AlwaysData)
 
-`config/db.php` lee estas variables de entorno (valores por defecto entre paréntesis):
+Crear una tarea diaria (por ejemplo, a las 18:00) que abra:
+`https://SU_SITIO.alwaysdata.net/api/recordatorios.php?t=EL_RECORDATORIO_TOKEN`
 
-| Variable | Descripción |
-|---|---|
-| `DB_HOST` (`localhost`) | Servidor de PostgreSQL |
-| `DB_PORT` (`5432`) | Puerto |
-| `DB_NAME` (`citas_vida_salud`) | Nombre de la base |
-| `DB_USER` (`postgres`) | Usuario |
-| `DB_PASS` (vacío) | Contraseña |
+### 4. Publicar la página (Vercel)
 
-Ejemplo en Linux o macOS:
+1. Importar el repositorio de GitHub en Vercel.
+2. En `vercel.json`, la ruta `/backend/:path*` debe apuntar al sitio de AlwaysData.
+3. Cada cambio en `main` se publica solo.
 
-```bash
-export DB_PASS='su_clave'
-php -S localhost:8000
-```
+### 5. Antes de presentar
 
-En XAMPP se puede copiar la carpeta a `htdocs` y abrir `http://localhost/citas_vida_salud/`.
-
-### 3. Ingresar
-
-Usuarios de demostración (contraseña **Vida2026\***, cámbiela antes de usar datos reales):
-
-| Usuario | Rol |
-|---|---|
-| `admin` | Administrador |
-| `recepcion` | Recepcionista |
-| `dr.perez` | Médico (con permiso para marcar citas como atendidas) |
+Cambiar las contraseñas de los usuarios de demostración (`admin`, `recepcion`, `dr.perez`), que aparecen en `sql/schema.sql`.
 
 ## Pruebas automáticas
 
