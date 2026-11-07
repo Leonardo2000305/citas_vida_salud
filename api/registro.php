@@ -47,12 +47,25 @@ foreach ($chequeo->fetchAll() as $fila) {
     if ($correo !== '' && mb_strtolower((string) $fila['correo']) === $correo) json_error(409, 'Ese correo ya tiene una cuenta.');
 }
 
+// Las fichas creadas por recepción también cuentan: no se puede duplicar carnet ni teléfono
+$ficha = $pdo->prepare('SELECT id_paciente, nombres, apellidos FROM paciente WHERE ci = :ci');
+$ficha->execute([':ci' => $ci]);
+$fichaExistente = $ficha->fetch();
+if ($fichaExistente) {
+    if (cuenta_normalizar($fichaExistente['nombres'] . ' ' . $fichaExistente['apellidos']) !== cuenta_normalizar($nombres . ' ' . $apellidos)) {
+        json_error(409, 'Ese carnet ya está registrado en la clínica con otro nombre. Acuda a recepción para corregirlo.');
+    }
+}
+$telefonoOtro = $pdo->prepare('SELECT 1 FROM paciente WHERE telefono = :tel AND ci <> :ci LIMIT 1');
+$telefonoOtro->execute([':tel' => $telefono, ':ci' => $ci]);
+if ($telefonoOtro->fetchColumn()) {
+    json_error(409, 'Ese número de teléfono ya está registrado en otra ficha de la clínica.');
+}
+
 $pdo->beginTransaction();
 try {
-    // Ficha de paciente: si ya existe con ese carnet, se reutiliza
-    $pac = $pdo->prepare('SELECT id_paciente FROM paciente WHERE ci = :ci');
-    $pac->execute([':ci' => $ci]);
-    $idPaciente = $pac->fetchColumn();
+    // Ficha de paciente: si ya existe con ese carnet y el mismo nombre, se usa esa misma ficha
+    $idPaciente = $fichaExistente ? $fichaExistente['id_paciente'] : false;
     if ($idPaciente === false) {
         $ins = $pdo->prepare(
             'INSERT INTO paciente (ci, nombres, apellidos, fecha_nacimiento, telefono, correo)

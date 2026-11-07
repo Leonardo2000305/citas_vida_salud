@@ -23,3 +23,11 @@ function cuenta_enviar_codigo(string $correo, string $asunto, string $codigo): b
                . "From: Clínica Vida Salud <no-responder@citasvidasalud.alwaysdata.net>\r\n";
     return @mail($correo, $asunto, $cuerpo, $cabeceras);
 }
+
+/** Compara nombres sin tildes, mayúsculas ni espacios de más: "José  Pérez" = "jose perez". */
+function cuenta_normalizar(string $texto): string
+{
+    $t = mb_strtolower(trim($texto));
+    $t = strtr($t, ['á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ü' => 'u', 'ñ' => 'n']);
+    return preg_replace('/\s+/', ' ', $t);
+}
