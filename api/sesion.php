@@ -27,7 +27,18 @@ switch ($_SERVER['REQUEST_METHOD']) {
             json_error(400, 'Ingrese su usuario o correo y su contraseña.');
         }
 
-        $st = db()->prepare(
+        $pdo = db();
+        // Límite de intentos: 5 fallos por IP o por usuario en 15 minutos
+        $pdo->exec('CREATE TABLE IF NOT EXISTS intentos_login (clave TEXT NOT NULL, creado TIMESTAMP NOT NULL DEFAULT NOW())');
+        $claveIp = 'ip:' . ($_SERVER['REMOTE_ADDR'] ?? '0');
+        $claveUsu = 'usu:' . mb_strtolower($identificador);
+        $fallos = $pdo->prepare("SELECT COUNT(*) FROM intentos_login WHERE clave IN (:a, :b) AND creado > NOW() - INTERVAL '15 minutes'");
+        $fallos->execute([':a' => $claveIp, ':b' => $claveUsu]);
+        if ((int) $fallos->fetchColumn() >= 5) {
+            json_error(429, 'Demasiados intentos fallidos. Espere 15 minutos e intente de nuevo.');
+        }
+
+        $st = $pdo->prepare(
             'SELECT u.id_usuario, u.nombres, u.apellidos, u.password_hash, u.puede_marcar_atendida,
                     u.id_medico, u.id_paciente, u.codigo_verificacion, r.nombre AS rol
                FROM usuario u
@@ -39,8 +50,11 @@ switch ($_SERVER['REQUEST_METHOD']) {
         $u = $st->fetch();
 
         if ($u === false || !password_verify($clave, $u['password_hash'])) {
+            $pdo->prepare('INSERT INTO intentos_login (clave) VALUES (:a), (:b)')->execute([':a' => $claveIp, ':b' => $claveUsu]);
             json_error(401, 'Usuario o contraseña incorrectos.');   // mensaje genérico a propósito
         }
+        // Entró bien: se borran los fallos de este usuario
+        $pdo->prepare('DELETE FROM intentos_login WHERE clave = :b')->execute([':b' => $claveUsu]);
         if ($u['codigo_verificacion'] !== null) {
             json_error(403, 'Debe verificar su correo antes de entrar. Revise su bandeja de entrada.');
         }

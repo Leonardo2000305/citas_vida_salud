@@ -78,6 +78,14 @@ function horarios_libres(PDO $pdo, int $idMedico, string $fecha, ?int $excluirCi
         $ocupadas[] = [new DateTimeImmutable($c['inicio']), new DateTimeImmutable($c['fin'])];
     }
 
+    // Bloqueos de agenda del médico: esas horas no se pueden reservar
+    $bl = $pdo->prepare('SELECT inicio, fin FROM bloqueo_agenda
+                          WHERE id_medico = :m AND activo AND inicio::date <= :f AND fin::date >= :f');
+    $bl->execute([':m' => $idMedico, ':f' => $dia->format('Y-m-d')]);
+    foreach ($bl->fetchAll() as $b) {
+        $ocupadas[] = [new DateTimeImmutable($b['inicio']), new DateTimeImmutable($b['fin'])];
+    }
+
     $libres = [];
     foreach ($bloques as $b) {
         $duracion = (int) $b['duracion_cita'];

@@ -3,14 +3,15 @@
  * ARCHIVO: recordatorios.php
  * CAPA: BACKEND (tarea programada)
  * SIRVE PARA: avisar a los pacientes que tienen cita mañana.
- * QUÉ HACE: al abrirlo con ?t=recordar-7741-vida avisa de las citas de mañana que aún no tienen recordatorio.
+ * QUÉ HACE: con el token RECORDATORIO_TOKEN (config/local.php) avisa de las citas de mañana que aún no tienen recordatorio.
  *           Se programa una vez al día en AlwaysData (tareas programadas).
  * CONECTA CON: includes/notificaciones.php
  */
 require_once __DIR__ . '/../includes/notificaciones.php';
 
 header('Content-Type: text/plain; charset=utf-8');
-if (($_GET['t'] ?? '') !== 'recordar-7741-vida') {
+$tokenReal = config_db('RECORDATORIO_TOKEN', '');
+if ($tokenReal === '' || !hash_equals($tokenReal, (string) ($_GET['t'] ?? ''))) {
     http_response_code(404);
     exit('No encontrado.');
 }

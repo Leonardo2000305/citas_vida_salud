@@ -14,6 +14,9 @@ require_once __DIR__ . '/../includes/notificaciones.php';
 $usuario = json_requerir([ROL_PACIENTE]);
 $pdo = db();
 $idPaciente = (int) ($usuario['id_paciente'] ?? 0);
+if ($idPaciente <= 0) {
+    json_error(400, 'Su cuenta no está vinculada a una ficha de paciente. Pida ayuda en recepción.');
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $st = $pdo->prepare(
@@ -37,6 +40,11 @@ if ($accion === 'anotar') {
     $valida = preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha) && $fecha >= date('Y-m-d');
     if ($medico <= 0 || !$valida) {
         json_error(400, 'Elija un médico y un día de hoy en adelante.');
+    }
+    $existe = $pdo->prepare('SELECT 1 FROM medico WHERE id_medico = :m AND activo');
+    $existe->execute([':m' => $medico]);
+    if ($existe->fetchColumn() === false) {
+        json_error(400, 'Ese médico no está disponible. Elija otro.');
     }
     $pdo->prepare(
         'INSERT INTO lista_espera (id_paciente, id_medico, fecha_deseada, activa) VALUES (:p, :m, :f, TRUE)

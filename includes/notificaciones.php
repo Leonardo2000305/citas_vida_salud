@@ -36,7 +36,11 @@ function brevo_enviar(string $correo, string $asunto, string $texto): bool
     $respuesta = curl_exec($ch);
     $estado = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
     curl_close($ch);
-    return $respuesta !== false && $estado >= 200 && $estado < 300;
+    if ($respuesta === false || $estado < 200 || $estado >= 300) {
+        error_log('Brevo no envió el correo a ' . $correo . ' (código ' . $estado . ')');
+        return false;
+    }
+    return true;
 }
 
 /** Guarda un aviso para el usuario y, si tiene correo, se lo manda. */
@@ -79,12 +83,15 @@ function detalle_cita(PDO $pdo, int $idCita): string
 /** Cuando se libera una hora, avisa a quienes esperaban ese médico ese día. */
 function avisar_lista_espera(PDO $pdo, int $idMedico, string $fecha, string $detalle): int
 {
-    $st = $pdo->prepare('SELECT id_paciente FROM lista_espera WHERE id_medico = :m AND fecha_deseada = :f AND activa');
+    $st = $pdo->prepare('SELECT id_espera, id_paciente FROM lista_espera WHERE id_medico = :m AND fecha_deseada = :f AND activa');
     $st->execute([':m' => $idMedico, ':f' => $fecha]);
     $n = 0;
+    $marcar = $pdo->prepare('UPDATE lista_espera SET activa = FALSE WHERE id_espera = :e');
     foreach ($st->fetchAll() as $fila) {
         notificar_paciente($pdo, (int) $fila['id_paciente'], 'Se liberó una hora',
             "Se liberó una hora con {$detalle}. Ingrese a la página para reservarla.");
+        // Ya fue avisado: no se le vuelve a avisar por la misma anotación
+        $marcar->execute([':e' => $fila['id_espera']]);
         $n++;
     }
     return $n;

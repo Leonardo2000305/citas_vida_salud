@@ -1,0 +1,8 @@
+# Configuración con claves y contraseñas: nunca se sube al repositorio
+config/local.php
+.env
+*.log
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
