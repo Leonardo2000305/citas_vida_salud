@@ -187,3 +187,31 @@ body { background-color: var(--fondo); }
     .tabla-wrap td.text-end::before { display: none; }
     .tarjeta { padding: 14px; }
 }
+
+/* ---------- Contraste legible en modo claro y oscuro ----------
+   Bootstrap pinta tablas, formularios y modales con colores fijos. Aquí se igualan
+   a las variables del tema para que el texto siempre contraste con el fondo. */
+:root { --campo: #ffffff; --cerrar: none; }
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --campo: #0b1220; --cerrar: invert(1) grayscale(1) brightness(1.6); }
+}
+:root[data-theme="dark"] { --campo: #0b1220; --cerrar: invert(1) grayscale(1) brightness(1.6); }
+
+body { color: var(--texto); }
+label, .form-label { color: var(--texto); font-weight: 600; }
+.modal-content { background: var(--tarjeta); color: var(--texto); border: 1px solid var(--borde); }
+.modal-header, .modal-footer { border-color: var(--borde); }
+.modal-title { color: var(--texto); font-weight: 800; }
+.btn-close { filter: var(--cerrar); }
+.form-control, .form-select { background-color: var(--campo); color: var(--texto); border-color: #94a3b8; }
+.form-control::placeholder { color: var(--texto-suave); opacity: 1; }
+.form-control:disabled, .form-select:disabled { opacity: .6; }
+.table { --bs-table-bg: transparent; --bs-table-color: var(--texto); --bs-table-border-color: var(--borde); color: var(--texto); }
+.table thead th { color: var(--texto-suave); }
+.text-muted { color: var(--texto-suave) !important; }
+.tarjeta h2, .encabezado h1 { color: var(--texto); }
+.alert-danger { color: #b91c1c; }
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .alert-danger { color: #fecaca; background: #3b1219; border-color: #7f1d1d; }
+}
+:root[data-theme="dark"] .alert-danger { color: #fecaca; background: #3b1219; border-color: #7f1d1d; }
