@@ -78,7 +78,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <ul class="lista-horarios mt-1">${horarios}</ul></div>
                         <div class="small text-muted"><i class="fa-solid fa-phone"></i> ${Clinica.esc(m.telefono || '—')}
                             &nbsp; <i class="fa-solid fa-envelope"></i> ${Clinica.esc(m.correo || '—')}</div>
-                        <a class="btn btn-outline-primary mt-auto" href="citas.html?nueva=1&medico=${m.id_medico}">
+                        <a class="btn btn-outline-primary mt-auto" href="${Clinica.usuario.rol === 'Paciente'
+                            ? `mis-citas.html?medico=${m.id_medico}&dr=${encodeURIComponent(m.apellidos)}`
+                            : `citas.html?nueva=1&medico=${m.id_medico}`}">
                             <i class="fa-solid fa-calendar-plus"></i> Programar cita</a>
                     </article>
                 </div>`;
