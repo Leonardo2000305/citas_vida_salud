@@ -125,6 +125,7 @@
         } else {
             html += '<br>No encontré horas libres cerca de esa fecha. Elija otro día o médico.';
         }
+        if (esPaciente) html += '<div class="mt-2"><button type="button" class="btn btn-sm btn-outline-info" id="vEspera">Anotarme en lista de espera</button></div>';
         html += `<div class="mt-2 d-flex gap-2 flex-wrap">
             ${cerca ? '<button type="button" class="btn btn-sm btn-primary" id="vAceptar">Reservar ese día</button>' : ''}
             <button type="button" class="btn btn-sm btn-outline-secondary" id="vOtroDia">Elegir otro día</button></div>`;
@@ -135,6 +136,13 @@
             $('vFecha').value = cerca.fecha;
             mostrarForm();
             cargarHoras(cerca.hora);
+        });
+        if (esPaciente) $('vEspera').addEventListener('click', async () => {
+            try {
+                const r = await Clinica.api('espera.php', { metodo: 'POST', datos: { accion: 'anotar', medico: medico.id_medico, fecha } });
+                Clinica.toast(r.mensaje);
+                $('vEspera').disabled = true;
+            } catch (e) { Clinica.toast(e.message, 'error'); }
         });
         $('vOtroDia').addEventListener('click', () => {
             mostrarForm();

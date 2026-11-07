@@ -8,6 +8,7 @@
  * CONECTA CON: api/registro.php, api/verificar.php, api/recuperar.php
  */
 require_once __DIR__ . '/_json.php';
+require_once __DIR__ . '/../includes/notificaciones.php';
 
 function cuenta_codigo(): string
 {
@@ -19,6 +20,9 @@ function cuenta_enviar_codigo(string $correo, string $asunto, string $codigo): b
 {
     $cuerpo = "Clínica Vida Salud\n\nSu código es: {$codigo}\n\n"
             . "Si usted no lo pidió, ignore este mensaje.";
+    if (brevo_enviar($correo, $asunto, $cuerpo)) {
+        return true;   // Brevo lo aceptó
+    }
     $cabeceras = "Content-Type: text/plain; charset=UTF-8\r\n"
                . "From: Clínica Vida Salud <no-responder@citasvidasalud.alwaysdata.net>\r\n";
     return @mail($correo, $asunto, $cuerpo, $cabeceras);

@@ -96,6 +96,7 @@
                     if (!PAGINAS_PACIENTE.includes(pagina)) location.replace('mis-citas.html');
                 }
                 this.vigilarInactividad();
+                this.pintarAvisos();
                 return d.usuario;
             } catch (e) {
                 location.replace('entrar.html');
@@ -210,6 +211,27 @@
         const clave = String(especialidad || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
         const hallada = Object.keys(Clinica.PREPARACION).find(k => clave.includes(k));
         return hallada ? Clinica.PREPARACION[hallada] : 'Llegue 10 minutos antes de su cita y traiga su carnet de identidad.';
+    };
+
+    /** Muestra los avisos del usuario en el lugar con id="avisos" y los marca como leídos. */
+    Clinica.pintarAvisos = async () => {
+        const caja = document.getElementById('avisos');
+        if (!caja) return;
+        try {
+            const d = await Clinica.api('notificaciones.php');
+            const bloque = document.getElementById('bloqueAvisos');
+            if (!d.avisos.length) { if (bloque) bloque.style.display = 'none'; return; }
+            if (bloque) bloque.style.display = '';
+            caja.innerHTML = d.avisos.slice(0, 8).map(a => `
+                <div class="border-bottom py-2 ${a.leida ? 'opacity-75' : ''}">
+                    ${a.leida ? '' : '<span class="badge bg-info me-1">Nuevo</span>'}
+                    <span>${Clinica.esc(a.mensaje)}</span>
+                    <div class="small text-muted">${Clinica.fecha(a.creada)}</div>
+                </div>`).join('');
+            if (d.sin_leer > 0) {
+                await Clinica.api('notificaciones.php', { metodo: 'POST', datos: { accion: 'leer' } });
+            }
+        } catch (e) { /* sin avisos por ahora */ }
     };
 
     /** Escribe los datos de la clínica en los lugares con data-info. */
