@@ -181,18 +181,19 @@ function crear_cita(PDO $pdo, array $d, int $idUsuario): int
         }
 
         $ins = $pdo->prepare(
-            'INSERT INTO cita (id_paciente, id_medico, id_especialidad, inicio, fin, motivo, id_usuario_registro)
-             VALUES (:p, :m, :e, :ini, :fin, :motivo, :u)
+            'INSERT INTO cita (id_paciente, id_medico, id_especialidad, inicio, fin, motivo, id_usuario_registro, derivado_por)
+             VALUES (:p, :m, :e, :ini, :fin, :motivo, :u, :derivador)
              RETURNING id_cita'
         );
         $ins->execute([
-            ':p'      => $d['paciente'],
-            ':m'      => $d['medico'],
-            ':e'      => $d['especialidad'],
-            ':ini'    => $slot['inicio']->format('Y-m-d H:i:s'),
-            ':fin'    => $slot['fin']->format('Y-m-d H:i:s'),
-            ':motivo' => $d['motivo'] !== '' ? $d['motivo'] : null,
-            ':u'      => $idUsuario,
+            ':p'         => $d['paciente'],
+            ':m'         => $d['medico'],
+            ':e'         => $d['especialidad'],
+            ':ini'       => $slot['inicio']->format('Y-m-d H:i:s'),
+            ':fin'       => $slot['fin']->format('Y-m-d H:i:s'),
+            ':motivo'    => $d['motivo'] !== '' ? $d['motivo'] : null,
+            ':u'         => $idUsuario,
+            ':derivador' => $d['derivado_por'] ?? null,
         ]);
         $id = (int) $ins->fetchColumn();
         $pdo->commit();
