@@ -25,6 +25,14 @@
             </div>
         </div>
 
+        <section class="tarjeta mb-3" id="bloqueAvisos" style="display:none">
+
+            <h2 class="mb-2"><i class="fa-solid fa-bell text-info"></i> Avisos</h2>
+
+            <div id="avisos"></div>
+
+        </section>
+
         <!-- Reserva por voz: el paciente dicta la orden y revisa antes de confirmar -->
                 <section class="tarjeta mb-3" id="panelVoz">
                     <div class="d-flex flex-wrap align-items-center gap-3">
@@ -70,6 +78,18 @@
             <div id="listaCitas" class="small text-muted">Cargando…</div>
         </section>
         <p class="small text-muted mt-4" data-info></p>
+
+        <section class="tarjeta mt-3">
+            <h2 class="mb-2"><i class="fa-solid fa-hourglass-half text-info"></i> Lista de espera</h2>
+            <p class="small text-muted">Si un médico no tiene horas en el día que quiere, anótese aquí. Le avisaremos si se libera una hora.</p>
+            <div class="row g-2 align-items-end">
+                <div class="col-md-5"><label class="form-label small">Médico</label><select class="form-select" id="eMedico"></select></div>
+                <div class="col-md-4"><label class="form-label small">Día que quiere</label><input type="date" class="form-control" id="eFecha"></div>
+                <div class="col-md-3"><button class="btn btn-outline-primary w-100" id="eAnotar">Anotarme</button></div>
+            </div>
+            <div id="eAviso" class="small mt-2"></div>
+            <div id="eLista" class="mt-3"></div>
+        </section>
     </main>
 </div>
 
@@ -121,6 +141,7 @@
                         · ${Clinica.esc(c.especialidad)}</div>
                     ${c.motivo ? `<div class="small text-muted">Motivo: ${Clinica.esc(c.motivo)}</div>` : ''}
                     <div class="small text-muted">Código: ${Clinica.esc(c.codigo)}</div>
+                    ${c.pagado ? `<div class="small text-success"><i class="fa-solid fa-circle-check"></i> Pagado: Bs ${Clinica.esc(c.monto)} (${Clinica.esc(c.metodo_pago)})</div>` : ''}
                     ${!pasada && ['Programada', 'Confirmada'].includes(c.estado) ? `<div class="small mt-1"><i class="fa-solid fa-circle-info text-info"></i> ${Clinica.esc(Clinica.preparacion(c.especialidad))}</div>` : ''}
                     ${puedeCancelar(c) ? `<button type="button" class="btn btn-sm btn-outline-danger mt-2" data-cancelar="${c.id_cita}"><i class="fa-solid fa-ban"></i> Cancelar cita</button>` : ''}
                 </div>`;
@@ -130,11 +151,52 @@
         }
     }
 
+    // ---------- Lista de espera ----------
+    async function cargarEspera() {
+        try {
+            const d = await Clinica.api('espera.php');
+            $('eLista').innerHTML = d.espera.length
+                ? '<div class="small fw-semibold mb-1">Anotado en espera:</div>' + d.espera.map(e =>
+                    `<div class="d-flex justify-content-between align-items-center border-bottom py-1">
+                        <span class="small">Dr. ${Clinica.esc(e.medico)} · ${new Date(e.fecha_deseada + 'T00:00:00').toLocaleDateString('es-BO')}</span>
+                        <button class="btn btn-sm btn-outline-secondary" data-quitar="${e.id_espera}">Quitar</button></div>`).join('')
+                : '';
+        } catch (e) { $('eLista').textContent = ''; }
+    }
+
+    async function cargarMedicosEspera() {
+        const d = await Clinica.api('especialidades_medicos.php?tipo=medicos');
+        $('eMedico').innerHTML = d.medicos.filter(m => m.activo).map(m =>
+            `<option value="${m.id_medico}">Dr. ${Clinica.esc(m.nombres)} ${Clinica.esc(m.apellidos)}</option>`).join('');
+    }
+
+    $('eAnotar').addEventListener('click', async () => {
+        $('eAviso').className = 'small mt-2';
+        try {
+            const r = await Clinica.api('espera.php', { metodo: 'POST', datos: { accion: 'anotar', medico: $('eMedico').value, fecha: $('eFecha').value } });
+            $('eAviso').className = 'small mt-2 text-success';
+            $('eAviso').textContent = r.mensaje;
+            cargarEspera();
+        } catch (e) {
+            $('eAviso').className = 'small mt-2 text-danger';
+            $('eAviso').textContent = e.message;
+        }
+    });
+
+    $('eLista').addEventListener('click', async (ev) => {
+        const b = ev.target.closest('button[data-quitar]');
+        if (!b) return;
+        await Clinica.api('espera.php', { metodo: 'POST', datos: { accion: 'quitar', id: b.dataset.quitar } });
+        cargarEspera();
+    });
+
     document.addEventListener('DOMContentLoaded', async () => {
         const usuario = await Clinica.requerirSesion();
         if (usuario.rol !== 'Paciente') { location.replace('inicio.html'); return; }
         Clinica.dibujarMenu('mis-citas');
         cargarCitas();
+        cargarEspera();
+        cargarMedicosEspera();
         document.addEventListener('cita-reservada', cargarCitas);
     });
 })();

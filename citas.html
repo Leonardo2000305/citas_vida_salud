@@ -228,8 +228,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (abierta && puedeGestionar)
             html += `<button class="btn btn-sm btn-outline-secondary" data-accion="reprogramar" data-id="${c.id_cita}" data-medico="${c.id_medico}" data-fecha="${c.inicio.slice(0, 10)}" title="Reprogramar"><i class="fa-solid fa-calendar-days"></i></button> `;
         if (abierta && puedeGestionar)
-            html += `<button class="btn btn-sm btn-outline-danger" data-accion="cancelar" data-id="${c.id_cita}" title="Cancelar"><i class="fa-solid fa-ban"></i></button>`;
+            html += `<button class="btn btn-sm btn-outline-danger" data-accion="cancelar" data-id="${c.id_cita}" title="Cancelar"><i class="fa-solid fa-ban"></i></button> `;
+        if (puedeGestionar && !c.pagado && c.estado !== 'Cancelada' && c.estado !== 'Inasistencia')
+            html += `<button class="btn btn-sm btn-outline-success" data-accion="cobrar" data-id="${c.id_cita}" title="Registrar pago"><i class="fa-solid fa-money-bill-wave"></i></button>`;
+        else if (c.pagado)
+            html += `<span class="small text-success" title="Pagado">Pagado Bs ${Clinica.esc(c.monto)}</span>`;
         return html;
+    }
+
+    /** Registro de pago en recepción (no es cobro en línea). */
+    async function registrarPago(id) {
+        const monto = prompt('Monto cobrado en bolivianos (Bs):');
+        if (monto === null) return;
+        const metodo = prompt('Método de pago: escriba Efectivo, QR, Tarjeta o Transferencia', 'Efectivo');
+        if (metodo === null) return;
+        try {
+            await Clinica.api('citas.php', { metodo: 'POST', datos: { accion: 'cobrar', id, monto: Number(monto), metodo: metodo.trim() } });
+            Clinica.toast('Pago registrado.');
+            cargarCitas();
+        } catch (e) { Clinica.toast(e.message, 'error'); }
     }
 
     async function cargarCitas() {
@@ -283,6 +300,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             case 'inasistencia': return cambiarEstado(id, 'Inasistencia');
             case 'cancelar':
                 $('cId').value = id; $('cMotivo').value = ''; return M.cancelar.show();
+            case 'cobrar': return registrarPago(id);
             case 'reprogramar':
                 $('rId').value = id; $('rMedico').value = b.dataset.medico; $('rFecha').value = hoy; $('rFecha').min = hoy;
                 ocultarError('errorReprogramar');

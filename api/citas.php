@@ -12,12 +12,14 @@
  * CONECTA CON: includes/citas_servicio.php (reglas de negocio), citas.html y paciente.html.
  */
 require_once __DIR__ . '/_json.php';
+require_once __DIR__ . '/../includes/notificaciones.php';
 
 $usuario = json_requerir();
 $pdo = db();
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $sql = "SELECT c.id_cita, c.codigo, c.inicio, c.fin, c.estado, c.motivo, c.motivo_cancelacion,
+                   c.monto, c.pagado, c.metodo_pago,
                    c.id_paciente, p.codigo AS codigo_paciente, p.ci, p.nombres AS nombres_paciente,
                    p.apellidos AS apellidos_paciente, p.telefono AS telefono_paciente,
                    c.id_medico, m.nombres AS nombres_medico, m.apellidos AS apellidos_medico,
@@ -57,7 +59,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $sql .= ' ORDER BY c.inicio DESC LIMIT 300';
     $st = $pdo->prepare($sql);
     $st->execute($params);
-    json_responder(200, ['citas' => $st->fetchAll()]);
+    $citas = $st->fetchAll();
+    foreach ($citas as &$c) {
+        $c['pagado'] = $c['pagado'] === 't' || $c['pagado'] === true;   // PostgreSQL devuelve 't'/'f'
+    }
+    unset($c);
+    json_responder(200, ['citas' => $citas]);
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -81,6 +88,8 @@ try {
             'motivo'        => trim((string) ($datos['motivo'] ?? '')),
         ];
         $id = crear_cita($pdo, $d, $quien['id']);
+        notificar_paciente($pdo, $d['paciente'], 'Cita reservada',
+            'Su cita fue reservada: ' . detalle_cita($pdo, $id) . ". Número de cita #{$id}. Llegue 10 minutos antes.");
         json_responder(201, ['id' => $id, 'mensaje' => 'Cita programada correctamente.']);
     }
 
@@ -112,14 +121,48 @@ try {
                 json_error(400, 'Solo puede cancelar con al menos 2 horas de anticipación. Llame a recepción.');
             }
         }
+        $idCita = (int) ($datos['id'] ?? 0);
+        $antes = $pdo->prepare('SELECT id_paciente, id_medico, inicio::date AS dia FROM cita WHERE id_cita = :c');
+        $antes->execute([':c' => $idCita]);
+        $datosCita = $antes->fetch();
         cambiar_estado_cita(
             $pdo,
-            (int) ($datos['id'] ?? 0),
+            $idCita,
             (string) ($datos['estado'] ?? ''),
             $usuario,
             isset($datos['motivo']) ? trim((string) $datos['motivo']) : null
         );
+        // Al cancelar: avisar al paciente y a quienes esperaban esa hora
+        if ($datosCita && ($datos['estado'] ?? '') === ESTADO_CANCELADA) {
+            $detalle = detalle_cita($pdo, $idCita);
+            notificar_paciente($pdo, (int) $datosCita['id_paciente'], 'Cita cancelada',
+                "Su cita fue cancelada: {$detalle}. Si necesita otra, reserve en la página.");
+            avisar_lista_espera($pdo, (int) $datosCita['id_medico'], (string) $datosCita['dia'], $detalle);
+        }
         json_responder(200, ['mensaje' => 'Estado de la cita actualizado.']);
+    }
+
+    // Registro de pago en recepción (no es un cobro en línea)
+    if ($accion === 'cobrar') {
+        json_requerir([ROL_ADMIN, ROL_RECEPCION]);
+        $idCita = (int) ($datos['id'] ?? 0);
+        $monto = (float) ($datos['monto'] ?? 0);
+        $metodo = (string) ($datos['metodo'] ?? '');
+        if ($monto <= 0 || $monto > 10000) {
+            json_error(400, 'Indique un monto válido.');
+        }
+        if (!in_array($metodo, ['Efectivo', 'QR', 'Tarjeta', 'Transferencia'], true)) {
+            json_error(400, 'Elija un método de pago válido.');
+        }
+        $upd = $pdo->prepare('UPDATE cita SET monto = :m, pagado = TRUE, metodo_pago = :mp WHERE id_cita = :c RETURNING id_paciente');
+        $upd->execute([':m' => $monto, ':mp' => $metodo, ':c' => $idCita]);
+        $idPaciente = $upd->fetchColumn();
+        if ($idPaciente === false) {
+            json_error(404, 'La cita no existe.');
+        }
+        notificar_paciente($pdo, (int) $idPaciente, 'Pago registrado',
+            "Pago de Bs {$monto} registrado con {$metodo} para su cita: " . detalle_cita($pdo, $idCita) . '.');
+        json_responder(200, ['mensaje' => 'Pago registrado.']);
     }
 } catch (ErrorCita $e) {
     json_error(400, $e->getMessage());
