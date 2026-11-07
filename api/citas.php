@@ -106,7 +106,8 @@ try {
         }
         $id = crear_cita($pdo, $d, $quien['id']);
         notificar_paciente($pdo, $d['paciente'], 'Cita reservada',
-            'Su cita fue reservada: ' . detalle_cita($pdo, $id) . ". Número de cita #{$id}. Llegue 10 minutos antes.");
+            'Su cita fue reservada: ' . detalle_cita($pdo, $id) . ". Número de cita #{$id}. Llegue " . minutos_llegada() . ' minutos antes.');
+        avisar_derivacion($pdo, $id);   // si es derivación, también avisa al médico que recibe al paciente
         json_responder(201, ['id' => $id, 'mensaje' => $d['derivado_por'] ? 'Derivación registrada. El paciente recibió su cita.' : 'Cita programada correctamente.']);
     }
 
@@ -149,6 +150,7 @@ try {
             $usuario,
             isset($datos['motivo']) ? trim((string) $datos['motivo']) : null
         );
+        avisar_derivador($pdo, $idCita, 'Su derivación cambió a estado «' . ($datos['estado'] ?? '') . '».');
         // Al cancelar: avisar al paciente y a quienes esperaban esa hora
         if ($datosCita && ($datos['estado'] ?? '') === ESTADO_CANCELADA) {
             $detalle = detalle_cita($pdo, $idCita);

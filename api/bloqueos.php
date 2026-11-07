@@ -103,6 +103,7 @@ try {
         $detalle = detalle_cita($pdo, (int) $c['id_cita']);
         if ($cancelar) {
             cambiar_estado_cita($pdo, (int) $c['id_cita'], ESTADO_CANCELADA, $sistema, $motivo);
+            avisar_derivador($pdo, (int) $c['id_cita'], "Su derivación fue cancelada por un bloqueo de agenda ({$motivo}).");
             notificar_paciente($pdo, (int) $c['id_paciente'], 'Cita cancelada',
                 "Su cita fue cancelada: {$detalle}. Motivo: {$motivo}. Puede reservar otra en la página.");
             avisar_lista_espera($pdo, $medico, (string) $c['dia'], $detalle);

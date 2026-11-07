@@ -25,7 +25,7 @@ $st = $pdo->query(
 $enviados = 0;
 foreach ($st->fetchAll() as $c) {
     notificar_paciente($pdo, (int) $c['id_paciente'], 'Recordatorio de cita',
-        'Mañana tiene cita: ' . detalle_cita($pdo, (int) $c['id_cita']) . '. Llegue 10 minutos antes.');
+        'Mañana tiene cita: ' . detalle_cita($pdo, (int) $c['id_cita']) . '. Llegue ' . minutos_llegada() . ' minutos antes.');
     $pdo->prepare('UPDATE cita SET recordatorio_enviado = TRUE WHERE id_cita = :c')->execute([':c' => $c['id_cita']]);
     $enviados++;
 }
