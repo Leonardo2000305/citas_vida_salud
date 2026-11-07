@@ -15,7 +15,8 @@
     const estado = $('estadoVoz');
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     let medicos = [];
-    let reconocimiento = null;   // se usa para parar la escucha si la persona vuelve a tocar el micrófono
+    let reconocimiento = null;
+    let escuchando = false;   // se usa para parar la escucha si la persona vuelve a tocar el micrófono
 
     function hablar(texto) {
         try {
@@ -106,38 +107,71 @@
     // ---------- Escuchar ----------
     function escuchar() {
         if (!SR) return;
-        const rec = new SR();
-        reconocimiento = rec;
-        rec.lang = 'es-419';
-        rec.interimResults = true;
-        rec.continuous = false;
-        rec.maxAlternatives = 1;
         let final = '';
-        $('btnMicro').classList.add('escuchando');
-        $('btnMicro').innerHTML = '<i class="fa-solid fa-microphone"></i> Escuchando… (toque para parar)';
-        decir('Hable ahora…');
-        rec.onresult = (ev) => {
-            let parcial = '';
-            for (const res of ev.results) {
-                if (res.isFinal) final += res[0].transcript + ' ';
-                else parcial += res[0].transcript;
-            }
-            $('textoVoz').value = (final + parcial).trim();
+        let reintentos = 0;
+        escuchando = true;
+
+        const pintarBoton = (activo) => {
+            $('btnMicro').classList.toggle('escuchando', activo);
+            $('btnMicro').innerHTML = activo
+                ? '<i class="fa-solid fa-microphone"></i> Escuchando… (toque para terminar)'
+                : '<i class="fa-solid fa-microphone"></i> Hablar';
         };
-        rec.onerror = (ev) => {
-            const msg = ev.error === 'not-allowed'
-                ? 'Permita el uso del micrófono en el navegador o escriba la orden.'
-                : 'No la escuché bien. Intente de nuevo o escriba la orden.';
-            decir(msg, 'error');
-        };
-        rec.onend = () => {
-            reconocimiento = null;
-            $('btnMicro').classList.remove('escuchando');
-            $('btnMicro').innerHTML = '<i class="fa-solid fa-microphone"></i> Hablar';
-            const texto = $('textoVoz').value.trim();
-            if (texto) { decir('Listo, esto escuché.'); procesar(texto); }
-        };
-        rec.start();
+
+        // Crea un reconocimiento nuevo. Se reinicia solo si hubo silencio, para dar tiempo a que alguien hable.
+        function arrancar() {
+            const rec = new SR();
+            reconocimiento = rec;
+            rec.lang = 'es-419';
+            rec.interimResults = true;
+            rec.continuous = true;          // no se corta al primer silencio
+            rec.maxAlternatives = 1;
+
+            rec.onresult = (ev) => {
+                let parcial = '';
+                for (let i = ev.resultIndex; i < ev.results.length; i++) {
+                    const res = ev.results[i];
+                    if (res.isFinal) final += res[0].transcript + ' ';
+                    else parcial += res[0].transcript;
+                }
+                $('textoVoz').value = (final + parcial).trim();
+                reintentos = 0;
+            };
+
+            rec.onerror = (ev) => {
+                if (ev.error === 'no-speech' || ev.error === 'aborted') return;   // silencio o parada normal: no es error
+                escuchando = false;
+                const mensajes = {
+                    'not-allowed': 'El navegador no tiene permiso para el micrófono. Toque el candado de la barra de direcciones y permítalo.',
+                    'service-not-allowed': 'El navegador no permite el reconocimiento de voz en esta página. Use Chrome o Edge.',
+                    'audio-capture': 'No encuentro un micrófono conectado. Revise que esté activo en Windows.',
+                    'network': 'El reconocimiento de voz necesita internet. Revise su conexión e intente de nuevo.',
+                    'aborted': 'Se detuvo la escucha. Toque Hablar para intentar otra vez.',
+                };
+                decir(mensajes[ev.error] || ('No pude escuchar (' + ev.error + '). Escriba la orden en la casilla.'), 'error');
+            };
+
+            rec.onend = () => {
+                reconocimiento = null;
+                if (escuchando && reintentos < 20) {
+                    reintentos++;
+                    arrancar();                 // sigue escuchando hasta que la persona toque el botón
+                    reconocimiento.start();
+                    return;
+                }
+                escuchando = false;
+                pintarBoton(false);
+                const texto = $('textoVoz').value.trim();
+                if (texto) { decir('Listo, esto escuché.'); procesar(texto); }
+                else if (!$('estadoVoz').classList.contains('text-danger')) decir('No escuché ninguna orden. Intente de nuevo.', 'error');
+            };
+
+            rec.start();
+        }
+
+        pintarBoton(true);
+        decir('Hable ahora… Toque el botón cuando termine.');
+        arrancar();
     }
 
     // ---------- Confirmar reserva ----------
@@ -190,7 +224,8 @@
             decir('Este navegador no tiene micrófono para voz. Use Chrome o Edge, o escriba la orden abajo.');
         } else {
             $('btnMicro').addEventListener('click', () => {
-                if (reconocimiento) reconocimiento.stop(); else escuchar();
+                if (escuchando && reconocimiento) { escuchando = false; reconocimiento.stop(); }
+                else if (!escuchando) escuchar();
             });
         }
         $('btnInterpretar').addEventListener('click', () => {
