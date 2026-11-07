@@ -28,13 +28,15 @@ switch ($_SERVER['REQUEST_METHOD']) {
         }
 
         $pdo = db();
-        // Límite de intentos: 5 fallos por IP o por usuario en 15 minutos
         $pdo->exec('CREATE TABLE IF NOT EXISTS intentos_login (clave TEXT NOT NULL, creado TIMESTAMP NOT NULL DEFAULT NOW())');
         $claveIp = 'ip:' . ($_SERVER['REMOTE_ADDR'] ?? '0');
         $claveUsu = 'usu:' . mb_strtolower($identificador);
-        $fallos = $pdo->prepare("SELECT COUNT(*) FROM intentos_login WHERE clave IN (:a, :b) AND creado > NOW() - INTERVAL '15 minutes'");
-        $fallos->execute([':a' => $claveIp, ':b' => $claveUsu]);
-        if ((int) $fallos->fetchColumn() >= 5) {
+        // Por usuario: 5 fallos. Por red (IP): 30, porque en una clínica todo el personal puede usar el mismo Wi-Fi.
+        $fallosUsu = $pdo->prepare("SELECT COUNT(*) FROM intentos_login WHERE clave = :b AND creado > NOW() - INTERVAL '15 minutes'");
+        $fallosUsu->execute([':b' => $claveUsu]);
+        $fallosIp = $pdo->prepare("SELECT COUNT(*) FROM intentos_login WHERE clave = :a AND creado > NOW() - INTERVAL '15 minutes'");
+        $fallosIp->execute([':a' => $claveIp]);
+        if ((int) $fallosUsu->fetchColumn() >= 5 || (int) $fallosIp->fetchColumn() >= 30) {
             json_error(429, 'Demasiados intentos fallidos. Espere 15 minutos e intente de nuevo.');
         }
 
