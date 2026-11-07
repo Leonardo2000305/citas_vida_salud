@@ -44,6 +44,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $sql .= ' AND c.estado = :estado';
         $params[':estado'] = (string) $_GET['estado'];
     }
+    // Un paciente solo ve sus propias citas
+    if ($usuario['rol'] === ROL_PACIENTE) {
+        $sql .= ' AND c.id_paciente = :yo';
+        $params[':yo'] = (int) ($usuario['id_paciente'] ?? 0);
+    }
     // Un médico solo ve su propia agenda
     if ($usuario['rol'] === ROL_MEDICO && $usuario['id_medico'] !== null) {
         $sql .= ' AND c.id_medico = :propio';
@@ -65,16 +70,17 @@ $accion = (string) ($datos['accion'] ?? '');
 
 try {
     if ($accion === 'crear') {
-        json_requerir([ROL_ADMIN, ROL_RECEPCION]);
+        $quien = json_requerir([ROL_ADMIN, ROL_RECEPCION, ROL_PACIENTE]);
         $d = [
-            'paciente'      => (int) ($datos['paciente'] ?? 0),
+            // El paciente siempre reserva para sí mismo; el personal elige el paciente
+            'paciente'      => $quien['rol'] === ROL_PACIENTE ? (int) ($quien['id_paciente'] ?? 0) : (int) ($datos['paciente'] ?? 0),
             'medico'        => (int) ($datos['medico'] ?? 0),
             'especialidad'  => (int) ($datos['especialidad'] ?? 0),
             'fecha'         => (string) ($datos['fecha'] ?? ''),
             'hora'          => (string) ($datos['hora'] ?? ''),
             'motivo'        => trim((string) ($datos['motivo'] ?? '')),
         ];
-        $id = crear_cita($pdo, $d, $usuario['id']);
+        $id = crear_cita($pdo, $d, $quien['id']);
         json_responder(201, ['id' => $id, 'mensaje' => 'Cita programada correctamente.']);
     }
 

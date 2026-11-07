@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<!--
+    ARCHIVO: registro.html | CAPA: FRONTEND (crear cuenta de paciente)
+    SIRVE PARA: que un paciente se registre con GMAIL (correo y código) o con su N.º DE TELÉFONO (sin correo).
+    QUÉ HACE: paso 1 elige el método; paso 2 llena sus datos; paso 3 (solo correo) pide el código del correo.
+    CONECTA CON: backend/registro.php, backend/verificar.php, js/app.js, css/clinica.css
+-->
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clínica Vida Salud · Crear cuenta</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/clinica.css">
+</head>
+<body>
+<div class="pantalla-login">
+    <section class="panel-marca">
+        <h1>Crear su cuenta de paciente</h1>
+        <p>Reserve sus citas, vea sus próximas consultas y reciba avisos. Puede registrarse con correo o solo con su teléfono.</p>
+    </section>
+    <section class="area-login">
+        <div class="card-login" style="max-width:460px">
+            <div class="logo-clinica"><span class="icono"><i class="fa-solid fa-heart-pulse"></i></span> Vida Salud</div>
+            <div id="alerta" class="alert d-none mt-3" role="alert"></div>
+
+            <!-- Paso 1: elegir método -->
+            <div id="paso1">
+                <h2 class="login-title">¿Cómo quiere registrarse?</h2>
+                <div class="d-grid gap-3">
+                    <button type="button" class="btn btn-lg btn-outline-primary text-start p-3" data-metodo="correo">
+                        <i class="fa-brands fa-google fa-lg me-2"></i><strong>GMAIL</strong>
+                        <div class="small text-muted">Tengo correo. Le enviamos un código para confirmar.</div>
+                    </button>
+                    <button type="button" class="btn btn-lg btn-outline-success text-start p-3" data-metodo="telefono">
+                        <i class="fa-solid fa-mobile-screen-button fa-lg me-2"></i><strong>N.º DE TELÉFONO</strong>
+                        <div class="small text-muted">No tengo correo. Me registro solo con mi número.</div>
+                    </button>
+                </div>
+                <p class="nota-demo"><a href="entrar.html">Ya tengo cuenta, quiero ingresar</a></p>
+            </div>
+
+            <!-- Paso 2: datos -->
+            <form id="paso2" class="d-none" novalidate>
+                <h2 class="login-title" id="tituloPaso2">Sus datos</h2>
+                <div class="row g-2">
+                    <div class="col-12"><label class="form-label small">Carnet de identidad (CI) *</label>
+                        <input class="form-control" id="ci" inputmode="numeric" maxlength="15" required></div>
+                    <div class="col-6"><label class="form-label small">Nombres *</label>
+                        <input class="form-control" id="nombres" maxlength="80" required></div>
+                    <div class="col-6"><label class="form-label small">Apellidos *</label>
+                        <input class="form-control" id="apellidos" maxlength="80" required></div>
+                    <div class="col-12"><label class="form-label small">Fecha de nacimiento *</label>
+                        <input type="date" class="form-control" id="fecha" required></div>
+                    <div class="col-12"><label class="form-label small">Número de teléfono *</label>
+                        <input class="form-control" id="telefono" inputmode="tel" maxlength="20" required></div>
+                    <div class="col-12 d-none" id="bloqueCorreo"><label class="form-label small">Correo (Gmail) *</label>
+                        <input type="email" class="form-control" id="correo" maxlength="120"></div>
+                    <div class="col-6"><label class="form-label small">Contraseña *</label>
+                        <input type="password" class="form-control" id="clave" minlength="8" required></div>
+                    <div class="col-6"><label class="form-label small">Repita la contraseña *</label>
+                        <input type="password" class="form-control" id="clave2" minlength="8" required></div>
+                </div>
+                <small class="text-muted d-block mt-2">La contraseña debe tener al menos 8 caracteres.</small>
+                <div class="d-flex gap-2 mt-3">
+                    <button type="button" class="btn btn-outline-secondary" id="volver">Volver</button>
+                    <button type="submit" class="btn-principal" id="btnCrear">Crear cuenta</button>
+                </div>
+            </form>
+
+            <!-- Paso 3: código del correo -->
+            <form id="paso3" class="d-none" novalidate>
+                <h2 class="login-title">Confirme su correo</h2>
+                <p class="small text-muted">Escriba el código de 6 dígitos que le enviamos a su correo.</p>
+                <input class="form-control form-control-lg text-center" id="codigo" inputmode="numeric" maxlength="6" placeholder="000000" required>
+                <button type="submit" class="btn-principal mt-3">Verificar y entrar</button>
+                <button type="button" class="btn btn-link w-100 mt-2" id="reenviar">Reenviar código</button>
+            </form>
+        </div>
+    </section>
+</div>
+
+<script src="js/app.js"></script>
+<script>
+(function () {
+    let metodo = 'telefono';
+    let correoPendiente = '';
+    const $ = id => document.getElementById(id);
+
+    function aviso(texto, tipo = 'danger') {
+        const a = $('alerta');
+        a.className = 'alert alert-' + tipo + ' mt-3';
+        a.textContent = texto;
+    }
+    function ocultarAviso() { $('alerta').className = 'alert d-none mt-3'; }
+    function ir(paso) {
+        ['paso1', 'paso2', 'paso3'].forEach(p => $(p).classList.toggle('d-none', p !== paso));
+        ocultarAviso();
+    }
+
+    document.querySelectorAll('[data-metodo]').forEach(b => b.addEventListener('click', () => {
+        metodo = b.dataset.metodo;
+        $('bloqueCorreo').classList.toggle('d-none', metodo !== 'correo');
+        $('correo').required = metodo === 'correo';
+        $('tituloPaso2').textContent = metodo === 'correo' ? 'Registro con Gmail' : 'Registro con teléfono';
+        ir('paso2');
+    }));
+    $('volver').addEventListener('click', () => ir('paso1'));
+
+    $('paso2').addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        if (!ev.target.checkValidity()) { ev.target.reportValidity(); return; }
+        if ($('clave').value !== $('clave2').value) { aviso('Las contraseñas no coinciden.'); return; }
+        const datos = {
+            metodo,
+            ci: $('ci').value.trim(), nombres: $('nombres').value.trim(), apellidos: $('apellidos').value.trim(),
+            fecha_nacimiento: $('fecha').value, telefono: $('telefono').value.trim(),
+            correo: $('correo').value.trim(), clave: $('clave').value,
+        };
+        $('btnCrear').disabled = true;
+        try {
+            const r = await Clinica.api('registro.php', { metodo: 'POST', datos });
+            if (r.paso === 'verificar') {
+                correoPendiente = r.correo;
+                ir('paso3');
+                aviso(r.mensaje, 'info');
+            } else {
+                sessionStorage.setItem('vida-aviso', r.mensaje);
+                location.replace('entrar.html');
+            }
+        } catch (e) {
+            aviso(e.message);
+        } finally {
+            $('btnCrear').disabled = false;
+        }
+    });
+
+    $('paso3').addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        try {
+            const r = await Clinica.api('verificar.php', { metodo: 'POST', datos: { correo: correoPendiente, codigo: $('codigo').value.trim() } });
+            sessionStorage.setItem('vida-aviso', r.mensaje);
+            location.replace('entrar.html');
+        } catch (e) { aviso(e.message); }
+    });
+
+    $('reenviar').addEventListener('click', async () => {
+        try {
+            const r = await Clinica.api('verificar.php', { metodo: 'POST', datos: { correo: correoPendiente, reenviar: true } });
+            aviso(r.mensaje, 'info');
+        } catch (e) { aviso(e.message); }
+    });
+})();
+</script>
+</body>
+</html>

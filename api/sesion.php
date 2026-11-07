@@ -29,17 +29,20 @@ switch ($_SERVER['REQUEST_METHOD']) {
 
         $st = db()->prepare(
             'SELECT u.id_usuario, u.nombres, u.apellidos, u.password_hash, u.puede_marcar_atendida,
-                    u.id_medico, r.nombre AS rol
+                    u.id_medico, u.id_paciente, u.codigo_verificacion, r.nombre AS rol
                FROM usuario u
                JOIN rol r ON r.id_rol = u.id_rol
               WHERE u.activo = TRUE
-                AND (u.nombre_usuario = :x OR lower(u.correo) = lower(:x))'
+                AND (u.nombre_usuario = :x OR lower(u.correo) = lower(:x) OR u.telefono = :x OR u.ci = :x)'
         );
         $st->execute([':x' => $identificador]);
         $u = $st->fetch();
 
         if ($u === false || !password_verify($clave, $u['password_hash'])) {
             json_error(401, 'Usuario o contraseña incorrectos.');   // mensaje genérico a propósito
+        }
+        if ($u['codigo_verificacion'] !== null) {
+            json_error(403, 'Debe verificar su correo antes de entrar. Revise su bandeja de entrada.');
         }
 
         session_regenerate_id(true);   // evita la fijación de sesión
@@ -49,6 +52,7 @@ switch ($_SERVER['REQUEST_METHOD']) {
             'rol'            => $u['rol'],
             'id_medico'      => $u['id_medico'] !== null ? (int) $u['id_medico'] : null,
             'puede_atendida' => (bool) $u['puede_marcar_atendida'],
+            'id_paciente'    => $u['id_paciente'] !== null ? (int) $u['id_paciente'] : null,
         ];
         $_SESSION['csrf'] = bin2hex(random_bytes(32));
         json_responder(200, ['usuario' => $_SESSION['usuario'], 'csrf' => $_SESSION['csrf']]);

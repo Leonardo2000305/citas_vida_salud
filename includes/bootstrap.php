@@ -18,6 +18,7 @@ require_once __DIR__ . '/layout.php';
 const ROL_ADMIN        = 'Administrador';
 const ROL_RECEPCION    = 'Recepcionista';
 const ROL_MEDICO       = 'Médico';
+const ROL_PACIENTE     = 'Paciente';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_set_cookie_params([

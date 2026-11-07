@@ -8,7 +8,7 @@ require_once __DIR__ . '/../includes/bootstrap.php';
 
 header('Content-Type: application/json; charset=utf-8');
 $usuario = usuario_actual();
-if ($usuario === null || !es_rol($usuario, ROL_ADMIN, ROL_RECEPCION)) {
+if ($usuario === null || !es_rol($usuario, ROL_ADMIN, ROL_RECEPCION, ROL_PACIENTE)) {
     http_response_code(403);
     echo json_encode(['error' => 'No autorizado.']);
     exit;

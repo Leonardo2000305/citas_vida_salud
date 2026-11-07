@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<!--
+    ARCHIVO: recuperar.html | CAPA: FRONTEND (recuperar contraseña)
+    SIRVE PARA: cambiar la contraseña olvidada con un código enviado al correo.
+    CONECTA CON: backend/recuperar.php, js/app.js, css/clinica.css
+-->
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clínica Vida Salud · Recuperar contraseña</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/clinica.css">
+</head>
+<body>
+<div class="pantalla-login">
+    <section class="panel-marca"><h1>Recupere su contraseña</h1><p>Le enviaremos un código a su correo.</p></section>
+    <section class="area-login">
+        <div class="card-login">
+            <div class="logo-clinica"><span class="icono"><i class="fa-solid fa-key"></i></span> Vida Salud</div>
+            <div id="alerta" class="alert d-none mt-3" role="alert"></div>
+
+            <form id="paso1" novalidate>
+                <h2 class="login-title">Su correo</h2>
+                <input type="email" class="form-control" id="correo" required maxlength="120" placeholder="correo@gmail.com">
+                <button type="submit" class="btn-principal mt-3">Enviar código</button>
+                <p class="small text-muted mt-3">Si su cuenta se creó solo con teléfono, pida ayuda en recepción.</p>
+            </form>
+
+            <form id="paso2" class="d-none" novalidate>
+                <h2 class="login-title">Nueva contraseña</h2>
+                <input class="form-control mb-2" id="codigo" inputmode="numeric" maxlength="6" placeholder="Código de 6 dígitos" required>
+                <input type="password" class="form-control mb-2" id="clave" minlength="8" placeholder="Nueva contraseña (mínimo 8)" required>
+                <button type="submit" class="btn-principal mt-2">Cambiar contraseña</button>
+            </form>
+            <p class="nota-demo"><a href="entrar.html">Volver al ingreso</a></p>
+        </div>
+    </section>
+</div>
+<script src="js/app.js"></script>
+<script>
+(function () {
+    const $ = id => document.getElementById(id);
+    function aviso(texto, tipo = 'danger') {
+        const a = $('alerta'); a.className = 'alert alert-' + tipo + ' mt-3'; a.textContent = texto;
+    }
+    $('paso1').addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        try {
+            const r = await Clinica.api('recuperar.php', { metodo: 'POST', datos: { accion: 'pedir', correo: $('correo').value.trim() } });
+            $('paso1').classList.add('d-none');
+            $('paso2').classList.remove('d-none');
+            aviso(r.mensaje, 'info');
+        } catch (e) { aviso(e.message); }
+    });
+    $('paso2').addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        try {
+            const r = await Clinica.api('recuperar.php', { metodo: 'POST', datos: {
+                accion: 'confirmar', correo: $('correo').value.trim(), codigo: $('codigo').value.trim(), clave: $('clave').value,
+            }});
+            sessionStorage.setItem('vida-aviso', r.mensaje);
+            location.replace('entrar.html');
+        } catch (e) { aviso(e.message); }
+    });
+})();
+</script>
+</body>
+</html>
