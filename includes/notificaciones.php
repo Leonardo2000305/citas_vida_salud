@@ -104,3 +104,53 @@ function avisar_lista_espera(PDO $pdo, int $idMedico, string $fecha, string $det
     }
     return $n;
 }
+
+/** Minutos de llegada antes de cada cita (config/local.php: MINUTOS_LLEGADA; por defecto 10). */
+function minutos_llegada(): int
+{
+    $n = (int) config_db('MINUTOS_LLEGADA', '10');
+    return ($n >= 0 && $n <= 120) ? $n : 10;
+}
+
+/** Avisa a los usuarios vinculados a un médico (los médicos sin cuenta no reciben avisos). */
+function notificar_medico(PDO $pdo, int $idMedico, string $asunto, string $mensaje): void
+{
+    $u = $pdo->prepare('SELECT id_usuario FROM usuario WHERE id_medico = :m AND activo');
+    $u->execute([':m' => $idMedico]);
+    foreach ($u->fetchAll() as $fila) {
+        notificar_usuario($pdo, (int) $fila['id_usuario'], $asunto, $mensaje);
+    }
+}
+
+/** Derivación nueva: avisa al médico que recibe al paciente. */
+function avisar_derivacion(PDO $pdo, int $idCita): void
+{
+    $st = $pdo->prepare(
+        'SELECT c.id_medico, c.motivo, p.nombres AS pn, p.apellidos AS pa, d.apellidos AS dr
+           FROM cita c
+           JOIN paciente p ON p.id_paciente = c.id_paciente
+           JOIN medico d ON d.id_medico = c.derivado_por
+          WHERE c.id_cita = :c AND c.derivado_por IS NOT NULL'
+    );
+    $st->execute([':c' => $idCita]);
+    $f = $st->fetch();
+    if ($f === false) {
+        return;   // no es una derivación
+    }
+    $motivo = $f['motivo'] !== null && $f['motivo'] !== '' ? $f['motivo'] : 'sin motivo indicado';
+    notificar_medico($pdo, (int) $f['id_medico'], 'Paciente derivado a usted',
+        "El Dr. {$f['dr']} le derivó al paciente {$f['pa']}, {$f['pn']}: " . detalle_cita($pdo, $idCita) . ". Motivo: {$motivo}.");
+}
+
+/** Cambio de estado en una cita derivada: avisa al médico que la derivó. */
+function avisar_derivador(PDO $pdo, int $idCita, string $texto): void
+{
+    $st = $pdo->prepare('SELECT derivado_por FROM cita WHERE id_cita = :c');
+    $st->execute([':c' => $idCita]);
+    $derivador = $st->fetchColumn();
+    if ($derivador === false || $derivador === null) {
+        return;   // la cita no fue derivada
+    }
+    notificar_medico($pdo, (int) $derivador, 'Cambio en una cita que derivó',
+        $texto . ' ' . detalle_cita($pdo, $idCita) . '.');
+}
