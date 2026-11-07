@@ -31,6 +31,38 @@
     </main>
 </div>
 
+<!-- Programar cita para pacientes, sin salir de esta página -->
+<div class="modal fade" id="modalCita" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form class="modal-content" id="formCita" novalidate>
+            <div class="modal-header">
+                <h5 class="modal-title">Programar cita</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <div id="errorCita" class="alert alert-danger d-none"></div>
+                <div class="mb-3"><div class="small text-muted">Médico</div><div class="fw-bold" id="cMedico"></div></div>
+                <div class="mb-3"><label class="form-label" for="cEspecialidad">Especialidad *</label>
+                    <select class="form-select" id="cEspecialidad" required></select></div>
+                <div class="row g-3">
+                    <div class="col-6"><label class="form-label" for="cFecha">Fecha *</label>
+                        <input type="date" class="form-control" id="cFecha" required></div>
+                    <div class="col-6"><label class="form-label" for="cHora">Hora libre *</label>
+                        <select class="form-select" id="cHora" required><option value="">Elija una fecha</option></select></div>
+                </div>
+                <div class="mt-3"><label class="form-label" for="cMotivo">Motivo de la consulta</label>
+                    <input class="form-control" id="cMotivo" maxlength="200" placeholder="Ej.: control anual, dolor de cabeza…"></div>
+                <p class="small text-muted mt-3 mb-0">Solo aparecen horas libres dentro del horario del médico.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-primary" id="btnCita">Programar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="js/app.js"></script>
 <script>
 const DIAS = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
@@ -78,18 +110,86 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <ul class="lista-horarios mt-1">${horarios}</ul></div>
                         <div class="small text-muted"><i class="fa-solid fa-phone"></i> ${Clinica.esc(m.telefono || '—')}
                             &nbsp; <i class="fa-solid fa-envelope"></i> ${Clinica.esc(m.correo || '—')}</div>
-                        ${Clinica.usuario.rol === 'Médico' && Number(m.id_medico) === Number(Clinica.usuario.id_medico) ? '' : `
-                        <a class="btn btn-outline-primary mt-auto" href="${Clinica.usuario.rol === 'Paciente'
-                            ? `mis-citas.html?medico=${m.id_medico}&dr=${encodeURIComponent(m.apellidos)}`
-                            : `citas.html?nueva=1&medico=${m.id_medico}`}">
-                            <i class="fa-solid ${Clinica.usuario.rol === 'Médico' ? 'fa-share-nodes' : 'fa-calendar-plus'}"></i>
-                            ${Clinica.usuario.rol === 'Médico' ? 'Derivar paciente' : 'Programar cita'}</a>`}
+                        ${Clinica.usuario.rol === 'Médico' && Number(m.id_medico) === Number(Clinica.usuario.id_medico) ? '' : Clinica.usuario.rol === 'Paciente'
+                            ? `<button type="button" class="btn btn-outline-primary mt-auto" data-programar="${m.id_medico}">
+                                <i class="fa-solid fa-calendar-plus"></i> Programar cita</button>`
+                            : `<a class="btn btn-outline-primary mt-auto" href="citas.html?nueva=1&medico=${m.id_medico}">
+                                <i class="fa-solid ${Clinica.usuario.rol === 'Médico' ? 'fa-share-nodes' : 'fa-calendar-plus'}"></i>
+                                ${Clinica.usuario.rol === 'Médico' ? 'Derivar paciente' : 'Programar cita'}</a>`}
                     </article>
                 </div>`;
             }).join('');
         }
         filtro.addEventListener('change', dibujar);
         dibujar();
+
+        // ----- Paciente: programa aquí mismo -----
+        const $c = id => document.getElementById(id);
+        const modalCita = bootstrap.Modal.getOrCreateInstance($c('modalCita'));
+        const hoy = new Date().toLocaleDateString('en-CA');
+        let medicoElegido = null;
+        const mostrarErrorCita = (texto) => { const b = $c('errorCita'); b.textContent = texto; b.classList.remove('d-none'); };
+
+        lista.addEventListener('click', (ev) => {
+            const boton = ev.target.closest('[data-programar]');
+            if (!boton) return;
+            medicoElegido = med.medicos.find(m => String(m.id_medico) === boton.dataset.programar) || null;
+            if (!medicoElegido) return;
+            $c('cMedico').textContent = `Dr. ${medicoElegido.nombres} ${medicoElegido.apellidos}`;
+            $c('cEspecialidad').innerHTML = medicoElegido.especialidades.map(x =>
+                `<option value="${x.id_especialidad}">${Clinica.esc(x.nombre)}</option>`).join('');
+            $c('cFecha').min = hoy;
+            $c('cFecha').value = '';
+            $c('cHora').innerHTML = '<option value="">Elija una fecha</option>';
+            $c('cMotivo').value = '';
+            $c('errorCita').classList.add('d-none');
+            modalCita.show();
+        });
+
+        async function cargarHorasCita() {
+            const fecha = $c('cFecha').value;
+            if (!medicoElegido || !fecha) return;
+            $c('cHora').innerHTML = '<option value="">Cargando horas…</option>';
+            try {
+                const d = await Clinica.api(`disponibilidad.php?medico=${medicoElegido.id_medico}&fecha=${fecha}`);
+                $c('cHora').innerHTML = d.horas.length
+                    ? '<option value="">Seleccione una hora…</option>' + d.horas.map(h => `<option value="${Clinica.esc(h.valor)}">${Clinica.esc(h.texto)}</option>`).join('')
+                    : '<option value="">No hay horas libres ese día</option>';
+            } catch (e) {
+                $c('cHora').innerHTML = '<option value="">Elija otra fecha</option>';
+                mostrarErrorCita(e.message);
+            }
+        }
+        $c('cFecha').addEventListener('change', cargarHorasCita);
+        $c('cEspecialidad').addEventListener('change', cargarHorasCita);
+
+        $c('formCita').addEventListener('submit', async (ev) => {
+            ev.preventDefault();
+            $c('errorCita').classList.add('d-none');
+            const datos = {
+                accion: 'crear',
+                medico: medicoElegido ? medicoElegido.id_medico : '',
+                especialidad: $c('cEspecialidad').value,
+                fecha: $c('cFecha').value,
+                hora: $c('cHora').value,
+                motivo: $c('cMotivo').value.trim(),
+            };
+            if (!datos.medico || !datos.especialidad || !datos.fecha || !datos.hora) {
+                mostrarErrorCita('Elija especialidad, fecha y hora.');
+                return;
+            }
+            const boton = $c('btnCita');
+            boton.disabled = true;
+            try {
+                await Clinica.api('citas.php', { metodo: 'POST', datos });
+                modalCita.hide();
+                Clinica.toast('Cita programada. La verá en Mis citas.');
+            } catch (e) {
+                mostrarErrorCita(e.message);
+            } finally {
+                boton.disabled = false;
+            }
+        });
     } catch (e) {
         lista.innerHTML = `<div class="col-12 text-danger">${Clinica.esc(e.message)}</div>`;
     }

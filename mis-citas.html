@@ -195,12 +195,6 @@
         if (usuario.rol !== 'Paciente') { location.replace('inicio.html'); return; }
         Clinica.dibujarMenu('mis-citas');
         cargarCitas();
-        // Desde "Programar cita" en Médicos: deja la orden de voz lista para pulsar "Entender"
-        const drPre = new URLSearchParams(location.search).get('dr');
-        if (drPre) {
-            document.getElementById('textoVoz').value = 'Quiero cita con el doctor ' + drPre;
-            document.getElementById('panelVoz').scrollIntoView({ behavior: 'smooth' });
-        }
         cargarEspera();
         cargarMedicosEspera();
         document.addEventListener('cita-reservada', cargarCitas);
