@@ -125,10 +125,15 @@
             $('textoVoz').value = (final + parcial).trim();
         };
         rec.onerror = (ev) => {
-            const msg = ev.error === 'not-allowed'
-                ? 'Permita el uso del micrófono en el navegador o escriba la orden.'
-                : 'No la escuché bien. Intente de nuevo o escriba la orden.';
-            decir(msg, 'error');
+            const mensajes = {
+                'not-allowed': 'El navegador no tiene permiso para el micrófono. Toque el candado de la barra de direcciones y permítalo.',
+                'service-not-allowed': 'El navegador no permite el reconocimiento de voz en esta página. Use Chrome o Edge.',
+                'audio-capture': 'No encuentro un micrófono conectado. Revise que esté activo en Windows.',
+                'network': 'El reconocimiento de voz necesita internet. Revise su conexión e intente de nuevo.',
+                'no-speech': 'No escuché ninguna voz. Toque Hablar y diga la orden justo después.',
+                'aborted': 'Se detuvo la escucha. Toque Hablar para intentar otra vez.',
+            };
+            decir(mensajes[ev.error] || ('No pude escuchar (' + ev.error + '). Escriba la orden en la casilla.'), 'error');
         };
         rec.onend = () => {
             reconocimiento = null;
