@@ -96,6 +96,22 @@ try {
     }
 
     if ($accion === 'estado') {
+        // El paciente solo puede cancelar sus propias citas, con al menos 2 horas de anticipación
+        if ($usuario['rol'] === ROL_PACIENTE) {
+            $idCita = (int) ($datos['id'] ?? 0);
+            $propia = $pdo->prepare('SELECT inicio FROM cita WHERE id_cita = :c AND id_paciente = :p');
+            $propia->execute([':c' => $idCita, ':p' => (int) ($usuario['id_paciente'] ?? 0)]);
+            $fila = $propia->fetch();
+            if ($fila === false) {
+                json_error(403, 'Esa cita no es suya.');
+            }
+            if (($datos['estado'] ?? '') !== ESTADO_CANCELADA) {
+                json_error(403, 'Su rol no tiene permiso para realizar ese cambio.');
+            }
+            if (new DateTimeImmutable($fila['inicio']) < new DateTimeImmutable('+2 hours')) {
+                json_error(400, 'Solo puede cancelar con al menos 2 horas de anticipación. Llame a recepción.');
+            }
+        }
         cambiar_estado_cita(
             $pdo,
             (int) ($datos['id'] ?? 0),

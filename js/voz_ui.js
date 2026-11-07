@@ -362,11 +362,18 @@
             // Si es paciente, el servidor pone su propia cuenta; no hace falta enviar el id
             const datos = { accion: 'crear', medico, especialidad, fecha, hora, motivo: $('vMotivo').value.trim() };
             if (idPaciente) datos.paciente = idPaciente;
-            await Clinica.api('citas.php', { metodo: 'POST', datos });
+            const creada = await Clinica.api('citas.php', { metodo: 'POST', datos });
             const med = medicos.find(m => String(m.id_medico) === medico);
             hablar(`Cita reservada${nombre ? ' para ' + nombre : ''}, con el doctor ${med ? med.apellidos : ''}, el día ${fecha.slice(8)} a las ${hora.replace(':', ' y ')}.`);
             Clinica.toast('Cita reservada por voz.');
             $('formVoz').classList.add('d-none');
+            const espTxt = $('vEspecialidad').options[$('vEspecialidad').selectedIndex]?.text || '';
+            $('vSugerencia').className = 'alert alert-success mt-3';
+            $('vSugerencia').innerHTML = `<strong><i class="fa-solid fa-circle-check"></i> Cita reservada</strong><br>` +
+                `Número de cita: <strong>#${Clinica.esc(creada.id)}</strong><br>` +
+                `Dr. ${med ? Clinica.esc(med.apellidos) : ''} · ${fechaLarga(fecha)} a las <strong>${Clinica.esc(hora)}</strong><br>` +
+                `<span class="small">Preparación: ${Clinica.esc(Clinica.preparacion(espTxt))}</span>`;
+            $('vSugerencia').classList.remove('d-none');
             $('textoVoz').value = '';
             decir('Cita reservada. Puede dictar otra.');
             document.dispatchEvent(new Event('cita-reservada'));

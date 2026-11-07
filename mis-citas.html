@@ -69,6 +69,7 @@
             <h2 class="mb-3"><i class="fa-solid fa-calendar-days text-info"></i> Mis citas</h2>
             <div id="listaCitas" class="small text-muted">Cargando…</div>
         </section>
+        <p class="small text-muted mt-4" data-info></p>
     </main>
 </div>
 
@@ -78,6 +79,27 @@
 <script>
 (function () {
     const $ = id => document.getElementById(id);
+
+    /** Solo se puede cancelar una cita futura, con al menos 2 horas de anticipación. */
+    function puedeCancelar(c) {
+        if (!['Programada', 'Confirmada'].includes(c.estado)) return false;
+        return new Date(c.inicio.replace(' ', 'T')) - new Date() > 2 * 60 * 60 * 1000;
+    }
+
+    $('listaCitas').addEventListener('click', async (ev) => {
+        const b = ev.target.closest('button[data-cancelar]');
+        if (!b) return;
+        if (!confirm('¿Seguro que quiere cancelar esta cita?')) return;
+        b.disabled = true;
+        try {
+            await Clinica.api('citas.php', { metodo: 'POST', datos: { accion: 'estado', id: b.dataset.cancelar, estado: 'Cancelada', motivo: 'Cancelada por el paciente' } });
+            Clinica.toast('Su cita fue cancelada.');
+            cargarCitas();
+        } catch (e) {
+            Clinica.toast(e.message, 'error');
+            b.disabled = false;
+        }
+    });
 
     async function cargarCitas() {
         try {
@@ -99,6 +121,8 @@
                         · ${Clinica.esc(c.especialidad)}</div>
                     ${c.motivo ? `<div class="small text-muted">Motivo: ${Clinica.esc(c.motivo)}</div>` : ''}
                     <div class="small text-muted">Código: ${Clinica.esc(c.codigo)}</div>
+                    ${!pasada && ['Programada', 'Confirmada'].includes(c.estado) ? `<div class="small mt-1"><i class="fa-solid fa-circle-info text-info"></i> ${Clinica.esc(Clinica.preparacion(c.especialidad))}</div>` : ''}
+                    ${puedeCancelar(c) ? `<button type="button" class="btn btn-sm btn-outline-danger mt-2" data-cancelar="${c.id_cita}"><i class="fa-solid fa-ban"></i> Cancelar cita</button>` : ''}
                 </div>`;
             }).join('');
         } catch (e) {

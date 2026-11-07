@@ -104,7 +104,7 @@
         // reconocedor de voz los separe con ":" o espacios (ej. "11:30 5021" = 11305021).
         // Ese tramo se quita del texto para que no se confunda con una hora.
         let textoSinCi = t;
-        const porPalabra = t.match(/\b(?:ci|carnet|cedula|c i)\b\s*(?:es|:|numero|nro)?\s*([\d:.\s-]+)/);
+        const porPalabra = t.match(/\b(?:ci|carne|carnet|cedula|identidad|entidad|c i)\b\s*(?:de\s+)?(?:identidad\s+|entidad\s+)?(?:es\s+|numero\s+|nro\s+|:\s*)?([\d:.\s-]+)/);
         if (porPalabra) {
             const digitos = porPalabra[1].replace(/\D/g, '');
             if (digitos.length >= 5) {
