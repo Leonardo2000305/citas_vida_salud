@@ -315,6 +315,7 @@ function puede_cambiar_estado(array $usuario, int $idMedicoCita, string $nuevo):
         ROL_MEDICO    => $nuevo === ESTADO_ATENDIDA
                          && $usuario['puede_atendida']
                          && $usuario['id_medico'] === (int) $idMedicoCita,
+        ROL_PACIENTE  => $nuevo === ESTADO_CANCELADA,   // la propiedad de la cita se revisa en citas.php
         default       => false,
     };
 }

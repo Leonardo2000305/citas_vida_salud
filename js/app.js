@@ -191,6 +191,36 @@
         boton.innerHTML = oculto ? '<i class="fa-solid fa-eye-slash"></i>' : '<i class="fa-solid fa-eye"></i>';
     });
 
+    // DATOS DE LA CLÍNICA: editar aquí (aparecen en todas las pantallas)
+    Clinica.INFO = {
+        emergencias: '[poner número de emergencias]',
+        telefono: '[poner teléfono de recepción]',
+        horario: '[poner horario de atención, por ejemplo: lunes a viernes 8:00 a 18:00]',
+    };
+
+    // Qué hacer antes de la consulta, según la especialidad (clave = nombre sin tildes, en minúsculas)
+    Clinica.PREPARACION = {
+        'odontologia': 'Llegue 10 minutos antes. Si tiene dolor fuerte, avise al llegar.',
+        'pediatria': 'Traiga la libreta de vacunas del niño y sus exámenes anteriores si los tiene.',
+        'ginecologia': 'Traiga sus exámenes anteriores y la lista de medicamentos que toma.',
+        'cardiologia': 'Use ropa cómoda y traiga la lista de medicamentos que toma.',
+        'medicina general': 'Traiga sus exámenes anteriores y la lista de medicamentos que toma.',
+    };
+    Clinica.preparacion = (especialidad) => {
+        const clave = String(especialidad || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+        const hallada = Object.keys(Clinica.PREPARACION).find(k => clave.includes(k));
+        return hallada ? Clinica.PREPARACION[hallada] : 'Llegue 10 minutos antes de su cita y traiga su carnet de identidad.';
+    };
+
+    /** Escribe los datos de la clínica en los lugares con data-info. */
+    Clinica.pintarInfo = () => {
+        document.querySelectorAll('[data-info]').forEach(el => {
+            el.innerHTML = `<strong>${Clinica.esc(Clinica.INFO.emergencias)}</strong> emergencias · ` +
+                `${Clinica.esc(Clinica.INFO.telefono)} · ${Clinica.esc(Clinica.INFO.horario)}`;
+        });
+    };
+    document.addEventListener('DOMContentLoaded', () => Clinica.pintarInfo());
+
     window.Clinica = Clinica;
     Clinica.aplicarTemaGuardado();
 })();
