@@ -246,11 +246,27 @@
         mostrarFormulario(r);
     }
 
+    /** Une fragmentos del reconocedor sin repetir: si un fragmento es la versión completa del anterior, lo reemplaza. */
+    function colapsarTexto(lista) {
+        const out = [];
+        for (const raw of lista) {
+            const t = String(raw || '').trim();
+            if (!t) continue;
+            if (out.length) {
+                const a = out[out.length - 1].toLowerCase(), b = t.toLowerCase();
+                if (b.startsWith(a)) { out[out.length - 1] = t; continue; }   // versión más completa
+                if (a.startsWith(b)) continue;                                  // versión más corta, ya está
+            }
+            out.push(t);
+        }
+        return out.join(' ');
+    }
+
     // ---------- Escuchar ----------
     function escuchar() {
         if (!SR) return;
-        let final = '';        // texto de sesiones anteriores (ya cerradas)
-        let sesion = '';       // texto de la sesión actual
+        let historial = [];    // fragmentos de sesiones anteriores (ya cerradas)
+        let sesion = [];       // fragmentos de la sesión actual
         let reintentos = 0;
         escuchando = true;
 
@@ -273,10 +289,8 @@
             rec.onresult = (ev) => {
                 // Se arma todo el texto de la sesión de nuevo: así no se repiten palabras,
                 // aunque el celular vuelva a enviar resultados ya recibidos.
-                let t = '';
-                for (let i = 0; i < ev.results.length; i++) t += ev.results[i][0].transcript + ' ';
-                sesion = t.trim();
-                $('textoVoz').value = (final + ' ' + sesion).trim();
+                sesion = Array.from(ev.results, r => r[0].transcript);
+                $('textoVoz').value = colapsarTexto([...historial, ...sesion]);
                 reintentos = 0;
             };
 
@@ -295,8 +309,8 @@
 
             rec.onend = () => {
                 reconocimiento = null;
-                final = (final + ' ' + sesion).trim();   // guarda lo dicho en esta sesión
-                sesion = '';
+                historial = historial.concat(sesion);   // guarda lo dicho en esta sesión
+                sesion = [];
                 if (escuchando && reintentos < 20) {
                     reintentos++;
                     arrancar();                 // sigue escuchando hasta que la persona toque el botón
