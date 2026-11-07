@@ -20,6 +20,9 @@ const ROL_RECEPCION    = 'Recepcionista';
 const ROL_MEDICO       = 'Médico';
 const ROL_PACIENTE     = 'Paciente';
 
+/** Minutos sin actividad antes de cerrar la sesión. */
+const SESION_MINUTOS_INACTIVA = 15;
+
 if (session_status() === PHP_SESSION_NONE) {
     session_set_cookie_params([
         'lifetime' => 0,
@@ -93,7 +96,19 @@ function verificar_csrf(): void
 /** @return array{id:int,nombre:string,rol:string,id_medico:?int,puede_atendida:bool}|null */
 function usuario_actual(): ?array
 {
-    return $_SESSION['usuario'] ?? null;
+    $usuario = $_SESSION['usuario'] ?? null;
+    if ($usuario === null) {
+        return null;
+    }
+    // Si pasó mucho tiempo sin actividad, la sesión se cierra (para que nadie retome una sesión abandonada)
+    $ahora = time();
+    if (isset($_SESSION['ultima_actividad']) && $ahora - (int) $_SESSION['ultima_actividad'] > SESION_MINUTOS_INACTIVA * 60) {
+        $_SESSION = [];
+        session_destroy();
+        return null;
+    }
+    $_SESSION['ultima_actividad'] = $ahora;
+    return $usuario;
 }
 
 /**

@@ -46,6 +46,7 @@ switch ($_SERVER['REQUEST_METHOD']) {
         }
 
         session_regenerate_id(true);   // evita la fijación de sesión
+        $_SESSION['ultima_actividad'] = time();
         $_SESSION['usuario'] = [
             'id'             => (int) $u['id_usuario'],
             'nombre'         => $u['nombres'] . ' ' . $u['apellidos'],
