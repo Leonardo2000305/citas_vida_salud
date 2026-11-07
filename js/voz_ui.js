@@ -80,8 +80,84 @@
         }
     }
 
-    function mostrarFormulario(r) {
+    // ---------- Disponibilidad y sugerencias ----------
+    function fechaLarga(iso) {
+        return new Date(iso + 'T00:00:00').toLocaleDateString('es-BO', { weekday: 'long', day: '2-digit', month: 'long' });
+    }
+
+    async function horasLibres(idMedico, fecha) {
+        const d = await Clinica.api(`disponibilidad.php?medico=${idMedico}&fecha=${fecha}`);
+        return d.horas;
+    }
+
+    /** Busca el día más cercano al pedido (primero hacia adelante) con horas libres. */
+    async function buscarCercana(idMedico, fecha, horaDeseada) {
+        const base = new Date(fecha + 'T00:00:00');
+        const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+        for (const k of [1, 2, 3, 4, 5, 6, 7, -1, -2, -3]) {
+            const d = new Date(base); d.setDate(d.getDate() + k);
+            if (d < hoy) continue;
+            const iso = d.toLocaleDateString('en-CA');
+            const horas = await horasLibres(idMedico, iso).catch(() => []);
+            if (horas.length) {
+                const pref = horaDeseada && horas.find(h => h.valor === horaDeseada);
+                return { fecha: iso, hora: (pref || horas[0]).valor };
+            }
+        }
+        return null;
+    }
+
+    /** Muestra el formulario normal y oculta la sugerencia. */
+    function mostrarForm() {
         $('formVoz').classList.remove('d-none');
+        $('vSugerencia').classList.add('d-none');
+    }
+
+    /** Sin horas ese día: no se muestra el formulario, solo el aviso y la recomendación. */
+    function mostrarSugerencia(medico, fecha, cerca) {
+        $('formVoz').classList.add('d-none');
+        const nombre = medico ? `Dr. ${Clinica.esc(medico.apellidos)}` : 'El médico';
+        let html = `<strong>${nombre}</strong> no tiene horas libres el <strong>${fechaLarga(fecha)}</strong>.`;
+        let frase = `${medico ? 'El doctor ' + medico.apellidos : 'El médico'} no tiene horas libres ese día.`;
+        if (cerca) {
+            html += `<br>Le recomendamos el <strong>${fechaLarga(cerca.fecha)}</strong> a las <strong>${cerca.hora}</strong>.`;
+            frase += ` Le recomiendo el ${fechaLarga(cerca.fecha)} a las ${cerca.hora.replace(':', ' y ')}.`;
+        } else {
+            html += '<br>No encontré horas libres cerca de esa fecha. Elija otro día o médico.';
+        }
+        html += `<div class="mt-2 d-flex gap-2 flex-wrap">
+            ${cerca ? '<button type="button" class="btn btn-sm btn-primary" id="vAceptar">Reservar ese día</button>' : ''}
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="vOtroDia">Elegir otro día</button></div>`;
+        $('vSugerencia').innerHTML = html;
+        $('vSugerencia').classList.remove('d-none');
+        hablar(frase);
+        if (cerca) $('vAceptar').addEventListener('click', () => {
+            $('vFecha').value = cerca.fecha;
+            mostrarForm();
+            cargarHoras(cerca.hora);
+        });
+        $('vOtroDia').addEventListener('click', () => {
+            mostrarForm();
+            $('vFecha').value = '';
+            $('vHora').innerHTML = '<option value="">Elija otro día</option>';
+            mostrarAviso('vAviso', 'Elija otro día para ver sus horas libres.', 'info');
+        });
+    }
+
+    /** Al cambiar médico o día a mano, si no hay horas se muestra la sugerencia. */
+    async function revisarManual() {
+        const med = $('vMedico').value, fecha = $('vFecha').value;
+        if (!med || !fecha) return cargarHoras();
+        const horas = await horasLibres(med, fecha).catch(() => null);
+        if (horas && horas.length === 0) {
+            const m = medicos.find(x => String(x.id_medico) === med);
+            return mostrarSugerencia(m, fecha, await buscarCercana(med, fecha, null));
+        }
+        mostrarForm();
+        cargarHoras();
+    }
+
+    function mostrarFormulario(r) {
         $('vCi').value = r.ci || '';
         // El paciente no dicta su CI: el servidor usa su propia cuenta
         if (esPaciente) r.faltantes = r.faltantes.filter(f => f !== 'CI del paciente');
@@ -92,13 +168,28 @@
         $('vMotivo').value = '';
         $('vAviso').classList.add('d-none');
         $('vResumen').textContent = r.texto ? `Usted dijo: «${r.texto}»` : '';
-        cargarHoras(r.hora);
 
+        if (r.medico && r.fecha) {
+            horasLibres(r.medico.id_medico, r.fecha).then(async (horas) => {
+                if (horas.length === 0) {
+                    return mostrarSugerencia(r.medico, r.fecha, await buscarCercana(r.medico.id_medico, r.fecha, r.hora));
+                }
+                mostrarForm();
+                cargarHoras(r.hora);
+                if (r.faltantes.length) {
+                    mostrarAviso('vAviso', `Me faltó: <strong>${Clinica.esc(r.faltantes.join(', '))}</strong>. Complételo abajo.`);
+                    hablar('Me falta: ' + r.faltantes.join(', ') + '. Complete el formulario y confirme.');
+                } else {
+                    hablar(`Entendí: cita con el doctor ${r.medico.apellidos}, para el día que indicó, a las ${r.hora.replace(':', ' y ')}. Revise y confirme.`);
+                }
+            }).catch(() => { mostrarForm(); cargarHoras(r.hora); });
+            return;
+        }
+        mostrarForm();
+        cargarHoras(r.hora);
         if (r.faltantes.length) {
             mostrarAviso('vAviso', `Me faltó: <strong>${Clinica.esc(r.faltantes.join(', '))}</strong>. Complételo abajo.`);
             hablar('Me falta: ' + r.faltantes.join(', ') + '. Complete el formulario y confirme.');
-        } else {
-            hablar(`Entendí: cita con el doctor ${r.medico.apellidos}, para el día que indicó, a las ${r.hora.replace(':', ' y ')}. Revise y confirme.`);
         }
     }
 
@@ -246,8 +337,8 @@
             const t = $('textoVoz').value.trim();
             if (t) procesar(t); else decir('Escriba o diga la orden primero.', 'error');
         });
-        $('vMedico').addEventListener('change', () => { llenarEspecialidades(); cargarHoras(); });
-        $('vFecha').addEventListener('change', () => cargarHoras());
+        $('vMedico').addEventListener('change', () => { llenarEspecialidades(); revisarManual(); });
+        $('vFecha').addEventListener('change', () => revisarManual());
         $('formVoz').addEventListener('submit', reservar);
 
         try {
