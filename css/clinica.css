@@ -170,3 +170,20 @@ body { background-color: var(--fondo); }
 .btn-micro:disabled { background: #94a3b8; box-shadow: none; }
 .btn-micro.escuchando { background: var(--peligro); animation: latido 1.1s infinite; }
 @keyframes latido { 0%,100% { box-shadow: 0 0 0 0 rgba(224,49,49,.5); } 50% { box-shadow: 0 0 0 16px rgba(224,49,49,0); } }
+
+/* ---------- Tablas en celular: cada fila se convierte en una tarjeta ---------- */
+@media (max-width: 640px) {
+    .tabla-wrap table, .tabla-wrap tbody, .tabla-wrap tr, .tabla-wrap td { display: block; width: 100%; }
+    .tabla-wrap thead { display: none; }
+    .tabla-wrap tr {
+        border: 1px solid var(--borde); border-radius: 14px; padding: 12px; margin-bottom: 12px; background: var(--tarjeta);
+    }
+    .tabla-wrap td { border: 0 !important; padding: 4px 0 !important; text-align: left !important; }
+    .tabla-wrap td[data-label]::before {
+        content: attr(data-label); display: block; font-size: 11px; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .04em; color: var(--texto-suave);
+    }
+    .tabla-wrap td.text-end { margin-top: 8px; }
+    .tabla-wrap td.text-end::before { display: none; }
+    .tarjeta { padding: 14px; }
+}

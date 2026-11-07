@@ -115,14 +115,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             cuerpo.innerHTML = lista.map(p => `
                 <tr>
-                    <td><code>${Clinica.esc(p.codigo)}</code></td>
-                    <td>${Clinica.esc(p.ci)}</td>
-                    <td><div class="fw-bold">${Clinica.esc(p.apellidos)}, ${Clinica.esc(p.nombres)}</div>
+                    <td data-label="Código"><code>${Clinica.esc(p.codigo)}</code></td>
+                    <td data-label="CI">${Clinica.esc(p.ci)}</td>
+                    <td data-label="Paciente"><div class="fw-bold">${Clinica.esc(p.apellidos)}, ${Clinica.esc(p.nombres)}</div>
                         <div class="small text-muted">${Clinica.esc(p.sexo || '')}</div></td>
-                    <td>${Clinica.esc(p.telefono)}</td>
-                    <td><span class="chip">${Number(p.total_citas)}</span></td>
-                    <td><span class="estado ${p.activo ? 'estado-activo' : 'estado-inactivo'}">${p.activo ? 'Activo' : 'Inactivo'}</span></td>
-                    <td class="text-end text-nowrap">
+                    <td data-label="Teléfono">${Clinica.esc(p.telefono)}</td>
+                    <td data-label="Citas"><span class="chip">${Number(p.total_citas)}</span></td>
+                    <td data-label="Estado"><span class="estado ${p.activo ? 'estado-activo' : 'estado-inactivo'}">${p.activo ? 'Activo' : 'Inactivo'}</span></td>
+                    <td data-label="Acciones" class="text-end text-nowrap">
                         <a class="btn btn-sm btn-outline-primary" href="citas.html?paciente=${p.id_paciente}" title="Historial de citas">
                             <i class="fa-solid fa-notes-medical"></i></a>
                         ${puedeEditar ? `

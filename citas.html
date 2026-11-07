@@ -249,14 +249,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const motivo = c.estado === 'Cancelada' && c.motivo_cancelacion
                     ? `<div class="small text-danger">Motivo: ${Clinica.esc(c.motivo_cancelacion)}</div>` : '';
                 return `<tr>
-                    <td><div class="hora">${Clinica.fecha(c.inicio)}</div><div class="small text-muted"><code>${Clinica.esc(c.codigo)}</code></div></td>
-                    <td><div class="fw-bold">${Clinica.esc(c.apellidos_paciente)}, ${Clinica.esc(c.nombres_paciente)}</div>
+                    <td data-label="Fecha y hora"><div class="hora">${Clinica.fecha(c.inicio)}</div><div class="small text-muted"><code>${Clinica.esc(c.codigo)}</code></div></td>
+                    <td data-label="Paciente"><div class="fw-bold">${Clinica.esc(c.apellidos_paciente)}, ${Clinica.esc(c.nombres_paciente)}</div>
                         <div class="small text-muted">${Clinica.esc(c.ci)} · ${Clinica.esc(c.telefono_paciente)}</div></td>
-                    <td><div>Dr. ${Clinica.esc(c.nombres_medico)} ${Clinica.esc(c.apellidos_medico)}</div>
+                    <td data-label="Médico"><div>Dr. ${Clinica.esc(c.nombres_medico)} ${Clinica.esc(c.apellidos_medico)}</div>
                         <div class="small text-muted">${Clinica.esc(c.especialidad)}</div>
                         ${c.motivo ? `<div class="small"><em>${Clinica.esc(c.motivo)}</em></div>` : ''}</td>
-                    <td>${Clinica.estadoBadge(c.estado)}${motivo}</td>
-                    <td class="text-end text-nowrap">${acciones(c)}</td>
+                    <td data-label="Estado">${Clinica.estadoBadge(c.estado)}${motivo}</td>
+                    <td data-label="Acciones" class="text-end text-nowrap">${acciones(c)}</td>
                 </tr>`;
             }).join('');
         } catch (e) {
