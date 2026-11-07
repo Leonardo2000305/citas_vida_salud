@@ -55,14 +55,14 @@
                 this.usuario = d.usuario;
                 return d.usuario;
             } catch (e) {
-                location.replace('index.html');
+                location.replace('entrar.html');
                 throw e;
             }
         },
 
         async cerrarSesion() {
             try { await this.api('sesion.php', { metodo: 'DELETE' }); } catch (e) { /* ya cerrada */ }
-            location.replace('index.html');
+            location.replace('entrar.html');
         },
 
         /** Dibuja el menú lateral (escritorio) y el menú superior (móvil) dentro de #menu. */
