@@ -249,7 +249,8 @@
     // ---------- Escuchar ----------
     function escuchar() {
         if (!SR) return;
-        let final = '';
+        let final = '';        // texto de sesiones anteriores (ya cerradas)
+        let sesion = '';       // texto de la sesión actual
         let reintentos = 0;
         escuchando = true;
 
@@ -270,13 +271,12 @@
             rec.maxAlternatives = 1;
 
             rec.onresult = (ev) => {
-                let parcial = '';
-                for (let i = ev.resultIndex; i < ev.results.length; i++) {
-                    const res = ev.results[i];
-                    if (res.isFinal) final += res[0].transcript + ' ';
-                    else parcial += res[0].transcript;
-                }
-                $('textoVoz').value = (final + parcial).trim();
+                // Se arma todo el texto de la sesión de nuevo: así no se repiten palabras,
+                // aunque el celular vuelva a enviar resultados ya recibidos.
+                let t = '';
+                for (let i = 0; i < ev.results.length; i++) t += ev.results[i][0].transcript + ' ';
+                sesion = t.trim();
+                $('textoVoz').value = (final + ' ' + sesion).trim();
                 reintentos = 0;
             };
 
@@ -295,6 +295,8 @@
 
             rec.onend = () => {
                 reconocimiento = null;
+                final = (final + ' ' + sesion).trim();   // guarda lo dicho en esta sesión
+                sesion = '';
                 if (escuchando && reintentos < 20) {
                     reintentos++;
                     arrancar();                 // sigue escuchando hasta que la persona toque el botón
